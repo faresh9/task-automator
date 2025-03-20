@@ -1,0 +1,37 @@
+[
+  {
+    "id": "task_1742498524",
+    "description": "Complete project proposal",
+    "assigned_to": "John Smith",
+    "deadline": "2025-04-15",
+    "priority": "High",
+    "status": "Done",
+    "analysis": "This is a high priority task with creation deadline approaching. I recommend immediate focus to outline key project sections. Allocate approximately 4 hours for initial draft creation, followed by 2 hours for review and revision. Notify project manager upon completion for feedback integration.",
+    "created_at": "2025-03-20T22:22:04.266193",
+    "updated_at": "2025-03-20T22:39:09.910434"
+  },
+  {
+    "id": "task_1742498555",
+    "description": "Complete project proposal",
+    "assigned_to": "John Smith",
+    "deadline": "2025-04-15",
+    "priority": "High",
+    "status": "To Do",
+    "analysis": "This is a high priority task assigned to John Smith with a impending deadline. I recommend immediate action to outline the project scope and key deliverables. John should focus on research, planning, and drafting the proposal today, aiming for completion by tomorrow.",
+    "created_at": "2025-03-20T22:22:35.222861"
+  },
+  {
+    "id": "task_1742499620",
+    "description": "Fix critical server outage",
+    "assigned_to": "IT Support",
+    "deadline": "2025-03-25",
+    "priority": "Urgent",
+    "status": "To Do",
+    "tags": [
+      "Urgent",
+      "Due This Week"
+    ],
+    "analysis": "This is an urgent task requiring immediate attention. The IT Support team should focus on resolving the server outage problem promptly. Other non-critical tasks should be postponed to prioritize this issue.",
+    "created_at": "2025-03-20T22:40:20.122205"
+  }
+]

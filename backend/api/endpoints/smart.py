@@ -7,7 +7,7 @@ from backend.core.models import EmailRequest, MeetingRequest, TaskRequest
 from backend.core.ai import categorize_email, schedule_meeting, prioritize_task
 from backend.integrations.gmail_service import GmailService
 from backend.integrations.calendar_service import CalendarService
-from backend.integrations.trello_service import TrelloService
+from backend.api.endpoints.task import get_tasks, save_tasks
 
 router = APIRouter(prefix="/api/smart", tags=["smart"])
 
@@ -17,15 +17,11 @@ def get_gmail_service():
 def get_calendar_service():
     return CalendarService()
 
-def get_trello_service():
-    return TrelloService()
-
 @router.post("/email-process")
 def process_email_with_ai(
     request: EmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
-    calendar_service: CalendarService = Depends(get_calendar_service),
-    trello_service: TrelloService = Depends(get_trello_service)
+    calendar_service: CalendarService = Depends(get_calendar_service)
 ):
     """Process an email with AI, categorize it, and take appropriate actions."""
     try:
@@ -63,19 +59,26 @@ def process_email_with_ai(
                 
         # Check for task-related emails
         if "task" in ai_analysis.lower() or "todo" in ai_analysis.lower() or "action" in ai_analysis.lower():
-            # Get the first Trello board and list for demo purposes
-            boards = trello_service.get_boards()
-            if boards:
-                lists = trello_service.get_lists(boards[0]['id'])
-                if lists:
-                    # Create a task in Trello
-                    card = trello_service.create_card(
-                        list_id=lists[0]['id'],
-                        name=f"Task from email: {subject}",
-                        description=f"Generated from email:\n\n{request.email_text[:1000]}...",
-                        due=None  # Could extract deadline from email text with more complex regex
-                    )
-                    actions_taken.append({"type": "task_created", "details": card})
+            # Create a task from the email
+            task = {
+                "id": f"task_{int(datetime.now().timestamp())}",
+                "description": f"Task from email: {subject}",
+                "assigned_to": "Auto-assigned",
+                "deadline": (datetime.now() + timedelta(days=7)).isoformat(),
+                "priority": "Medium",
+                "status": "To Do",
+                "analysis": ai_analysis,
+                "created_at": datetime.now().isoformat(),
+                "source": "email",
+                "email_content": request.email_text[:1000]
+            }
+            
+            # Save to local storage
+            tasks = get_tasks()
+            tasks.append(task)
+            save_tasks(tasks)
+            
+            actions_taken.append({"type": "task_created", "details": task})
         
         # Reply to the email with a confirmation of actions taken
         if actions_taken:
@@ -156,11 +159,9 @@ def smart_schedule_meeting(
 
 @router.post("/create-task")
 def smart_create_task(
-    request: TaskRequest,
-    board_name: Optional[str] = "Tasks",
-    trello_service: TrelloService = Depends(get_trello_service)
+    request: TaskRequest
 ):
-    """Analyze a task with AI and create it in Trello with appropriate labels and priority."""
+    """Analyze a task with AI and create it with appropriate tags based on priority."""
     try:
         # 1. Get AI analysis
         ai_analysis = prioritize_task(request)
@@ -183,62 +184,35 @@ def smart_create_task(
         elif days_until_deadline <= 7:
             tags.append("Due This Week")
             
-        # 3. Determine which list to place the task in
-        list_name = "To Do"
+        # 3. Determine status based on analysis
+        status = "To Do"
         if "started" in ai_analysis.lower() or "in progress" in ai_analysis.lower():
-            list_name = "In Progress"
+            status = "In Progress"
         
-        # 4. Find or create the board and list
-        boards = trello_service.get_boards()
-        board_id = None
+        # 4. Create task
+        task = {
+            "id": f"task_{int(datetime.now().timestamp())}",
+            "description": request.description,
+            "assigned_to": request.assigned_to,
+            "deadline": request.deadline,
+            "priority": request.priority,
+            "status": status,
+            "tags": tags,
+            "analysis": ai_analysis,
+            "created_at": datetime.now().isoformat()
+        }
         
-        # Look for an existing board with the specified name
-        for board in boards:
-            if board['name'].lower() == board_name.lower():
-                board_id = board['id']
-                break
-                
-        # Create a new board if needed
-        if not board_id:
-            new_board = trello_service.create_board(board_name)
-            board_id = new_board['id']
-            
-        # Get lists for this board
-        lists = trello_service.get_lists(board_id)
-        list_id = None
-        
-        # Find the appropriate list
-        for lst in lists:
-            if lst['name'].lower() == list_name.lower():
-                list_id = lst['id']
-                break
-                
-        # Create the list if it doesn't exist
-        if not list_id and lists:
-            new_list = trello_service.create_list(board_id, list_name)
-            list_id = new_list['id']
-        elif not list_id and not lists:
-            # Create default lists if board is empty
-            to_do_list = trello_service.create_list(board_id, "To Do")
-            in_progress_list = trello_service.create_list(board_id, "In Progress")
-            done_list = trello_service.create_list(board_id, "Done")
-            list_id = to_do_list['id']
-            
-        # 5. Create the card with all the collected information
-        card = trello_service.create_card(
-            list_id=list_id,
-            name=request.description,
-            description=f"Assigned to: {request.assigned_to}\nAI Analysis: {ai_analysis}",
-            due=deadline_date.isoformat(),
-            labels=tags
-        )
+        # 5. Save to local storage
+        tasks = get_tasks()
+        tasks.append(task)
+        save_tasks(tasks)
         
         return {
             "analysis": ai_analysis,
             "task_created": True,
-            "task_details": card,
+            "task_details": task,
             "tags": tags,
-            "list": list_name
+            "status": status
         }
         
     except Exception as e:
