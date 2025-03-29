@@ -28,8 +28,16 @@ def setup_google_auth():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    credentials_path, SCOPES,
+                    redirect_uri='http://localhost:8000/oauth2callback'  # Explicit redirect URI
+                )
+                creds = flow.run_local_server(port=8000)  # Use the same port as the redirect URI
+            except Exception as e:
+                print(f"Error during authentication: {e}")
+                print("Make sure your redirect URIs are correctly configured in the Google Cloud Console.")
+                return None
         
         # Save the credentials for the next run
         with open(token_path, 'wb') as token:
@@ -39,5 +47,8 @@ def setup_google_auth():
     return creds
 
 if __name__ == "__main__":
-    setup_google_auth()
-    print("Setup complete. You can now use Gmail and Calendar services.")
+    creds = setup_google_auth()
+    if creds:
+        print("Setup complete. You can now use Gmail and Calendar services.")
+    else:
+        print("Setup failed. Please check the error message above.")

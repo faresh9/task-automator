@@ -33,5 +33,81 @@
     ],
     "analysis": "This is an urgent task requiring immediate attention. The IT Support team should focus on resolving the server outage problem promptly. Other non-critical tasks should be postponed to prioritize this issue.",
     "created_at": "2025-03-20T22:40:20.122205"
+  },
+  {
+    "id": "task_1742584639",
+    "description": "Prepare quarterly financial report",
+    "assigned_to": "Finance Team",
+    "deadline": "2025-04-30",
+    "priority": "High",
+    "status": "To Do",
+    "tags": [
+      "High Priority"
+    ],
+    "analysis": "This is a finance task with high priority. The optimal handling is to ensure immediate focus by the Finance Team. They should start working on the quarterly financial report without delay, dedicating sufficient resources to meet the upcoming deadline on April 30, 2025.",
+    "created_at": "2025-03-21T22:17:19.983696"
+  },
+  {
+    "id": "task_1742584713",
+    "description": "Task from email: Urgent Task Request",
+    "assigned_to": "Auto-assigned",
+    "deadline": "2025-03-28T22:18:33.974079",
+    "priority": "Medium",
+    "status": "To Do",
+    "analysis": "This email falls under the task request category.",
+    "created_at": "2025-03-21T22:18:33.974079",
+    "source": "email",
+    "email_content": "From: client@example.com\nTo: you@example.com\nSubject: Urgent Task Request\n\nPlease complete the following task by next Friday: Update all client documentation with the new branding guidelines. This is high priority."
+  },
+  {
+    "id": "task_1742841659",
+    "description": "update all CI/CD piplelines",
+    "assigned_to": "mahdi",
+    "deadline": "2025-03-27",
+    "priority": "High",
+    "status": "To Do",
+    "tags": [
+      "Urgent",
+      "High Priority",
+      "Due This Week"
+    ],
+    "analysis": "This is a development task with high priority. Mahdi should focus on this update urgently. Ensure completion by the deadline, starting with critical pipelines first.",
+    "created_at": "2025-03-24T21:40:59.932653"
+  },
+  {
+    "id": "task_1742841694",
+    "description": "Task from email: Task",
+    "assigned_to": "Auto-assigned",
+    "deadline": "2025-03-31T21:41:34.495533",
+    "priority": "Medium",
+    "status": "To Do",
+    "analysis": "This email falls under the task update category.",
+    "created_at": "2025-03-24T21:41:34.495533",
+    "source": "email",
+    "email_content": "From: fares haroun <fharoun120@gmail.com>\nSubject: Task\n\nYouve been assigned a task for next Saturday, update all servers\r\n"
+  },
+  {
+    "id": "task_1742841922",
+    "description": "Task from email: No Subject",
+    "assigned_to": "Auto-assigned",
+    "deadline": "2025-03-31T21:45:22.734830",
+    "priority": "Medium",
+    "status": "To Do",
+    "analysis": "This email falls under the task update category.",
+    "created_at": "2025-03-24T21:45:22.734830",
+    "source": "email",
+    "email_content": "From: fharoun120@gmail.com\nSubject: No Subject\n\nI've processed your email and taken the following actions:\n\n- Task Created\n"
+  },
+  {
+    "id": "task_1742844246",
+    "description": "Task from email: Sjsj",
+    "assigned_to": "Auto-assigned",
+    "deadline": "2025-03-31T22:24:06.397363",
+    "priority": "Medium",
+    "status": "To Do",
+    "analysis": "This email falls under the task update category.",
+    "created_at": "2025-03-24T22:24:06.397363",
+    "source": "email",
+    "email_content": "From: mohammed haroun <mohamad.business014@gmail.com>\nSubject: Sjsj\n\nTask : \u0639\u0627\u0631\u0641\r\n"
   }
 ]

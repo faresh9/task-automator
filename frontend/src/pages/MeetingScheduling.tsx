@@ -1,9 +1,3 @@
-import React from 'react'
+import MeetingScheduling from '../components/meetings/MeetingScheduling';
 
-function MeetingScheduling() {
-  return (
-    <div>MeetingScheduling</div>
-  )
-}
-
-export default MeetingScheduling
+export default MeetingScheduling;

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List, Optional
-from backend.core.models import TaskRequest, TaskStatus
+from backend.core.models import TaskRequest, TaskStatus, StatusUpdate  # Import StatusUpdate from models.py
 from backend.core.ai import prioritize_task
 import json
 import os
@@ -72,9 +72,6 @@ def create_task(request: TaskRequest):
         return task
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-class StatusUpdate(BaseModel):
-    status: str
 
 @router.put("/task/{task_id}/status")
 def update_task_status(task_id: str, update: StatusUpdate):

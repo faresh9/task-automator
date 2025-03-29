@@ -1,49 +1,57 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
+import TaskManagement from './pages/TaskManagement';
 import EmailAutomation from './pages/EmailAutomation';
 import MeetingScheduling from './pages/MeetingScheduling';
-import TaskManagement from './pages/TaskManagement';
-import { useState } from 'react';
 import './App.css';
-import EmailTab from './components/EmailTab';
-import MeetingTab from './components/MeetingTab';
-import TaskTab from './components/TaskTab';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('email');
-
   return (
-    <div className="app-container">
-      <header>
-        <h1>Task Automator</h1>
-        <div className="tabs">
-          <button 
-            className={activeTab === 'email' ? 'active' : ''} 
-            onClick={() => setActiveTab('email')}
-          >
-            Email Assistant
-          </button>
-          <button 
-            className={activeTab === 'meeting' ? 'active' : ''} 
-            onClick={() => setActiveTab('meeting')}
-          >
-            Meeting Scheduler
-          </button>
-          <button 
-            className={activeTab === 'task' ? 'active' : ''} 
-            onClick={() => setActiveTab('task')}
-          >
-            Task Manager
-          </button>
+    <Router>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Navbar />
+        <div className="flex">
+          <Sidebar />
+          <div className="flex-1 p-6 lg:p-8 overflow-auto h-[calc(100vh-4rem)]">
+            <div className="max-w-7xl mx-auto">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/tasks" element={<TaskManagement />} />
+                <Route path="/emails" element={<EmailAutomation />} />
+                <Route path="/meetings" element={<MeetingScheduling />} />
+              </Routes>
+            </div>
+          </div>
         </div>
-      </header>
-      
-      <main>
-        {activeTab === 'email' && <EmailTab />}
-        {activeTab === 'meeting' && <MeetingTab />}
-        {activeTab === 'task' && <TaskTab />}
-      </main>
-    </div>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+      </div>
+    </Router>
   );
 }
 

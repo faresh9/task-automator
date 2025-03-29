@@ -102,80 +102,80 @@ class CalendarService:
                 'error': str(e)
             }
     
-    def find_free_slots(self, start_date, end_date, duration_minutes=60):
-        """Find free time slots in the calendar."""
-        try:
-            # Get busy times
-            body = {
-                "timeMin": start_date,
-                "timeMax": end_date,
-                "items": [{"id": "primary"}]
-            }
+    # def find_free_slots(self, start_date, end_date, duration_minutes=60):
+    #     """Find free time slots in the calendar."""
+    #     try:
+    #         # Get busy times
+    #         body = {
+    #             "timeMin": start_date,
+    #             "timeMax": end_date,
+    #             "items": [{"id": "primary"}]
+    #         }
             
-            busy_result = self.service.freebusy().query(body=body).execute()
-            busy_times = busy_result['calendars']['primary']['busy']
+    #         busy_result = self.service.freebusy().query(body=body).execute()
+    #         busy_times = busy_result['calendars']['primary']['busy']
             
-            # Convert to datetime objects
-            busy_times = [(datetime.datetime.fromisoformat(time['start'].replace('Z', '+00:00')), 
-                          datetime.datetime.fromisoformat(time['end'].replace('Z', '+00:00'))) 
-                          for time in busy_times]
+    #         # Convert to datetime objects
+    #         busy_times = [(datetime.datetime.fromisoformat(time['start'].replace('Z', '+00:00')), 
+    #                       datetime.datetime.fromisoformat(time['end'].replace('Z', '+00:00'))) 
+    #                       for time in busy_times]
             
-            # Find free slots (simplified - for demonstration)
-            free_slots = []
-            start_time = datetime.datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            end_time = datetime.datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    #         # Find free slots (simplified - for demonstration)
+    #         free_slots = []
+    #         start_time = datetime.datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+    #         end_time = datetime.datetime.fromisoformat(end_date.replace('Z', '+00:00'))
             
-            current = start_time
+    #         current = start_time
             
-            # Only consider working hours (9 AM - 5 PM)
-            work_start_hour = 9
-            work_end_hour = 17
+    #         # Only consider working hours (9 AM - 5 PM)
+    #         work_start_hour = 9
+    #         work_end_hour = 17
             
-            while current < end_time:
-                # Skip to next day's work start if outside working hours
-                if current.hour < work_start_hour:
-                    current = datetime.datetime(current.year, current.month, current.day, 
-                                             work_start_hour, 0)
-                elif current.hour >= work_end_hour:
-                    current = datetime.datetime(current.year, current.month, current.day, 
-                                             work_start_hour, 0) + datetime.timedelta(days=1)
-                    continue
+    #         while current < end_time:
+    #             # Skip to next day's work start if outside working hours
+    #             if current.hour < work_start_hour:
+    #                 current = datetime.datetime(current.year, current.month, current.day, 
+    #                                          work_start_hour, 0)
+    #             elif current.hour >= work_end_hour:
+    #                 current = datetime.datetime(current.year, current.month, current.day, 
+    #                                          work_start_hour, 0) + datetime.timedelta(days=1)
+    #                 continue
                 
-                # Skip weekends
-                if current.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
-                    current = datetime.datetime(current.year, current.month, current.day, 
-                                             work_start_hour, 0) + datetime.timedelta(days=1)
-                    continue
+    #             # Skip weekends
+    #             if current.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+    #                 current = datetime.datetime(current.year, current.month, current.day, 
+    #                                          work_start_hour, 0) + datetime.timedelta(days=1)
+    #                 continue
                 
-                proposed_end = current + datetime.timedelta(minutes=duration_minutes)
+    #             proposed_end = current + datetime.timedelta(minutes=duration_minutes)
                 
-                # Check if this slot extends beyond working hours
-                if proposed_end.hour >= work_end_hour or proposed_end.day > current.day:
-                    current = datetime.datetime(current.year, current.month, current.day + 1, 
-                                             work_start_hour, 0)
-                    continue
+    #             # Check if this slot extends beyond working hours
+    #             if proposed_end.hour >= work_end_hour or proposed_end.day > current.day:
+    #                 current = datetime.datetime(current.year, current.month, current.day + 1, 
+    #                                          work_start_hour, 0)
+    #                 continue
                 
-                # Check if this time slot overlaps with any busy periods
-                is_free = True
-                for busy_start, busy_end in busy_times:
-                    if (current < busy_end and proposed_end > busy_start):
-                        is_free = False
-                        current = busy_end
-                        break
+    #             # Check if this time slot overlaps with any busy periods
+    #             is_free = True
+    #             for busy_start, busy_end in busy_times:
+    #                 if (current < busy_end and proposed_end > busy_start):
+    #                     is_free = False
+    #                     current = busy_end
+    #                     break
                 
-                if is_free:
-                    free_slots.append({
-                        'start': current.isoformat(),
-                        'end': proposed_end.isoformat()
-                    })
-                    current = proposed_end
+    #             if is_free:
+    #                 free_slots.append({
+    #                     'start': current.isoformat(),
+    #                     'end': proposed_end.isoformat()
+    #                 })
+    #                 current = proposed_end
                 
-                # Ensure we don't get stuck in a loop
-                if current == proposed_end:
-                    current += datetime.timedelta(minutes=15)
+    #             # Ensure we don't get stuck in a loop
+    #             if current == proposed_end:
+    #                 current += datetime.timedelta(minutes=15)
             
-            return free_slots
+    #         return free_slots
         
-        except Exception as e:
-            print(f"Error finding free slots: {str(e)}")
-            return []
+    #     except Exception as e:
+    #         print(f"Error finding free slots: {str(e)}")
+    #         return []

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from backend.core.models import EmailRequest
+from backend.core.models import EmailRequest, EmailSendRequest  # Import EmailSendRequest from models.py
 from backend.core.ai import categorize_email
 from backend.integrations.gmail_service import GmailService
 
@@ -25,9 +25,13 @@ def get_unread_emails(gmail_service: GmailService = Depends(get_gmail_service)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/emails/send")
-def send_email(to: str, subject: str, body: str, gmail_service: GmailService = Depends(get_gmail_service)):
+def send_email(request: EmailSendRequest, gmail_service: GmailService = Depends(get_gmail_service)):
     try:
-        result = gmail_service.send_email(to, subject, body)
+        result = gmail_service.send_email(
+            to=request.to,
+            subject=request.subject,
+            body=request.body
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,9 +1,3 @@
-import React from 'react'
+import TaskManagement from '../components/tasks/TaskManagement';
 
-function TaskManagement() {
-  return (
-    <div>TaskManagement</div>
-  )
-}
-
-export default TaskManagement
+export default TaskManagement;

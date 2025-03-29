@@ -100,3 +100,39 @@ class MeetingScheduleResponse(BaseModel):
     event_created: bool
     event_details: Dict[str, Any]
     scheduled_time: Dict[str, str]
+
+class EmailAnalysisResponse(BaseModel):
+    """Response model for email analysis and processing."""
+    analysis: Dict[str, Any]  
+    actions_taken: List[Dict[str, Any]]
+    timestamp: datetime
+
+# Models moved from smart.py
+class SmartMeetingRequest(BaseModel):
+    """Model for enhanced meeting scheduling requests with additional metadata."""
+    request: MeetingRequest
+    summary: str
+    location: Optional[str] = "To be determined"
+    description: Optional[str] = ""
+
+# Models moved from task.py
+class StatusUpdate(BaseModel):
+    """Model for task status updates."""
+    status: str
+
+# Models moved from email.py
+class EmailSendRequest(BaseModel):
+    """Model for email sending requests."""
+    to: str
+    subject: str
+    body: str
+
+# Models moved from meeting.py
+class CalendarEventRequest(BaseModel):
+    """Model for calendar event creation requests."""
+    summary: str
+    location: str
+    description: str
+    start_time: str
+    end_time: str
+    attendees: Optional[List[str]] = None
