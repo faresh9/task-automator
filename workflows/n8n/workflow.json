@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "gmail-trigger",
+      "type": "Gmail Trigger"
+    },
+    {
+      "id": "mongodb-connection",
+      "type": "MongoDB",
+      "parameters": {
+        "operation": "find",
+        "collection": "sender_history",
+        "query": "{}"
+      },
+      "credentials": "mongodb-credentials"
+    },
+    {
+      "id": "trello-task",
+      "type": "Trello",
+      "parameters": {
+        "operation": "createCard",
+        "boardId": "YOUR_TRELLO_BOARD_ID",
+        "listId": "YOUR_TRELLO_LIST_ID",
+        "name": "Task Name",
+        "description": "Task Description"
+      },
+      "credentials": "trello"
+    }
+  ],
+  "connections": {
+    "gmail-trigger": {
+      "main": [
+        [
+          {
+            "node": "mongodb-connection",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "mongodb-connection": {
+      "main": [
+        [
+          {
+            "node": "trello-task",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

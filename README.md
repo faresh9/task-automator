@@ -59,3 +59,26 @@ Edit .env with your API keys
 3. Start the API:
 
 uvicorn backend.main:app --reload
+
+### MongoDB Setup
+
+1. Create a MongoDB database (e.g., using MongoDB Atlas).
+2. Add the following collections:
+   - `sender_history`: Stores email sender information.
+   - `action_history`: Records actions taken by the workflow.
+3. Update the `credentials.json` file with your MongoDB connection string.
+
+### Trello Setup
+
+1. Obtain your Trello API key and token from the Trello Developer Portal.
+2. Replace `YOUR_TRELLO_API_KEY` and `YOUR_TRELLO_API_TOKEN` in `credentials.json`.
+3. Replace `YOUR_TRELLO_BOARD_ID` and `YOUR_TRELLO_LIST_ID` in `workflow.json` with your actual Trello board and list IDs.
+
+### Testing
+
+1. Use a "Manual Trigger" node for testing the workflow before enabling the Gmail Trigger.
+2. Test each path (e.g., Calendar creation, Trello task creation) individually.
+
+### Activate Workflow
+
+1. Once tested, enable the Gmail Trigger to automate the workflow.

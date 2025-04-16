@@ -1,0 +1,591 @@
+{
+  "name": "automation_refined",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "c3270fc7-aa10-49f3-be69-4efa10ce4204",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4VQeAkktuATeJBvt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an email processing assistant that identifies actions needed and uses the appropriate tools to accomplish them.\\n\\nCRITICAL INSTRUCTIONS:\\n1. ALWAYS use one of the provided tools - NEVER suggest actions without using a tool\\n2. For ANY mention of meetings, calls, or appointments → use the Google Calendar tool\\n3. For ANY tasks, todos, assignments, or action items → use the Google Tasks tool\\n4. For ANY email requiring a response → use the Gmail tool to send a reply\\n5. ALWAYS extract precise dates, times, attendees, and all other required information\\n6. If information is missing but required by a tool, make a reasonable inference based on context\\n7. Review similar past emails (if provided) to maintain consistency in your responses\\n\\nWORKFLOW:\\n1. Read the email completely\\n2. Review any similar past emails to understand context\\n3. Identify the primary purpose (meeting, task, needs reply)\\n4. Extract ALL relevant details (dates, times, people, subjects)\\n5. Select and use the appropriate tool with the extracted information\\n6. NEVER skip using a tool when action is needed"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        840,
+        0
+      ],
+      "id": "601199fb-c8cc-41d8-a8c6-bc88e7df854b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "29e786c5-bca3-4416-b531-9a621b4d3f7a",
+              "name": "chatInput",
+              "value": "={{ $json.parsedEmail.from }}\\nSubject: {{ $json.parsedEmail.subject }}\\nBody: {{ $json.parsedEmail.body }}\\n\\nPossible Dates: {{ $json.parsedEmail.structured.possibleDates.join(', ') }}\\nPossible Times: {{ $json.parsedEmail.structured.possibleTimes.join(', ') }}\\nPeople Mentioned: {{ $json.parsedEmail.structured.mentionedPeople.join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "id": "c79f6acc-f41c-4bdf-9009-f47ec31eddb7",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "ft:gpt-4o-2024-08-06:personal::BLBDjGmb",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        420
+      ],
+      "id": "608241f1-45b5-450c-b786-3cf5dfdac925",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "tTSjCS7fJHYRq397",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=email_{{ $('Gmail Trigger').item.json.id }}",
+        "contextWindowLength": 100
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        420
+      ],
+      "id": "62bdc8e0-912a-4916-b2b7-da52ccc7af90",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "fharoun120@gmail.com",
+          "mode": "list",
+          "cachedResultName": "fharoun120@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "useDefaultReminders": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Use_Default_Reminders', ``, 'boolean') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Attendees', ``, 'string') }}"
+          ],
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Description', ``, 'string') }}",
+          "location": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Location', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        700
+      ],
+      "id": "2e767528-a179-4f91-bf8a-682463f5da7d",
+      "name": "Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "V5gh5GwZiOsUgWqE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "task": "MTIyMjEzMzI2MDI2MTIwNjkwNDU6MDow",
+        "title": "={{ $fromAI('Title', ``, 'string') }}",
+        "additionalFields": {
+          "dueDate": ""
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        680
+      ],
+      "id": "d052ebb1-1ffb-4e4c-b2a8-d9db805d8d78",
+      "name": "Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "qQNaFgnXYjrJHZT8",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.From }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        1000,
+        700
+      ],
+      "id": "c6df26e7-287a-49b9-99b7-7f6535dc93ce",
+      "name": "Gmail",
+      "webhookId": "e4a01c65-0dc2-4ae7-894f-29cf5e22164f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4VQeAkktuATeJBvt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced Email Parser - Replace your current Code node\nlet item = $input.first();\nreturn [{\n  ...item.json,\n  parsedEmail: {\n    from: item.json.From || \"Unknown\",\n    to: item.json.To || \"\",\n    subject: item.json.Subject || \"No Subject\",\n    body: item.json.snippet || \"\",\n    fullBody: item.json.body || item.json.snippet || \"\",\n    date: item.json.Date || new Date().toISOString(),\n    threadId: item.json.threadId || item.json.id || \"unknown-thread\",\n    isReply: (item.json.Subject || \"\").toLowerCase().startsWith(\"re:\") || false,\n    hasAttachments: item.json.hasAttachments || false,\n    structured: {\n      possibleDates: extractDates(item.json.snippet || \"\"),\n      possibleTimes: extractTimes(item.json.snippet || \"\"),\n      mentionedPeople: extractPeople(item.json.snippet || \"\"),\n      keywords: extractKeywords(item.json.snippet || \"\"),\n      actionItems: extractActionItems(item.json.snippet || \"\"),\n      mentionedLocations: extractLocations(item.json.snippet || \"\")\n    }\n  }\n}];\n\n// Helper functions\nfunction extractDates(text) {\n  const datePatterns = [\n    /\\b\\d{4}-\\d{2}-\\d{2}\\b/g,                     // YYYY-MM-DD\n    /\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b/g,             // MM/DD/YYYY or DD/MM/YYYY\n    /\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \\d{1,2}(?:st|nd|rd|th)?,? \\d{2,4}\\b/gi, // Month Day, Year\n    /\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\\b/gi, // Day names\n    /\\b(?:tomorrow|today|yesterday|next week|next month)\\b/gi // Relative dates\n  ];\n  \n  let dates = [];\n  datePatterns.forEach(pattern => {\n    const matches = text.match(pattern) || [];\n    dates = [...dates, ...matches];\n  });\n  return dates;\n}\n\nfunction extractTimes(text) {\n  const timePatterns = [\n    /\\b\\d{1,2}[:.]\\d{2}\\s*(?:am|pm|AM|PM)?\\b/g,   // 3:00pm, 15:00\n    /\\b\\d{1,2}\\s*(?:am|pm|AM|PM)\\b/g,             // 3pm, 11AM\n    /\\b(?:noon|midnight)\\b/gi                      // noon, midnight\n  ];\n  \n  let times = [];\n  timePatterns.forEach(pattern => {\n    const matches = text.match(pattern) || [];\n    times = [...times, ...matches];\n  });\n  return times;\n}\n\nfunction extractPeople(text) {\n  // Email pattern\n  const emailPattern = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g;\n  const emails = text.match(emailPattern) || [];\n  \n  // Name patterns (simplified)\n  const namePattern = /\\b[A-Z][a-z]+ (?:[A-Z][a-z]+\\b)/g;\n  const possibleNames = text.match(namePattern) || [];\n  \n  return [...emails, ...possibleNames];\n}\n\nfunction extractKeywords(text) {\n  const stopWords = ['i', 'me', 'my', 'myself', 'we', 'our', 'the', 'and', 'but', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now'];\n  \n  const words = text.toLowerCase()\n    .replace(/[^a-z0-9\\s]/g, '')\n    .split(/\\s+/)\n    .filter(word => word.length > 2 && !stopWords.includes(word));\n  \n  // Count word frequencies\n  const wordCounts = {};\n  words.forEach(word => {\n    wordCounts[word] = (wordCounts[word] || 0) + 1;\n  });\n  \n  // Sort by frequency\n  return Object.entries(wordCounts)\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, 10)\n    .map(entry => entry[0]);\n}\n\nfunction extractActionItems(text) {\n  // Look for common action item indicators\n  const actionPatterns = [\n    /\\b(?:please|kindly|pls)\\s+([^.!?]+[.!?])/gi,\n    /\\b(?:task|todo|to-do|action item)s?:?\\s*([^.!?]+[.!?])/gi,\n    /\\b(?:need|must|should|have to)\\s+([^.!?]+[.!?])/gi,\n    /\\b(?:can you|could you)\\s+([^.!?]+[.!?])/gi\n  ];\n  \n  let actions = [];\n  actionPatterns.forEach(pattern => {\n    const matches = [];\n    let match;\n    while ((match = pattern.exec(text)) !== null) {\n      if (match[1] && match[1].trim().length > 10) {\n        matches.push(match[1].trim());\n      }\n    }\n    actions = [...actions, ...matches];\n  });\n  \n  return actions;\n}\n\nfunction extractLocations(text) {\n  // Simple location extraction - could be enhanced with a more sophisticated NER\n  const locationPatterns = [\n    /\\b(?:in|at|from|to)\\s+([A-Z][a-z]+(?: [A-Z][a-z]+)*)\\b/g,\n    /\\b(?:room|building|office|location):\\s*([A-Za-z0-9 ]+)\\b/gi,\n    /\\b(?:street|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr)(?:\\s|,)\\s*([A-Za-z0-9 ]+)\\b/gi\n  ];\n  \n  let locations = [];\n  locationPatterns.forEach(pattern => {\n    const matches = [];\n    let match;\n    while ((match = pattern.exec(text)) !== null) {\n      if (match[1] && match[1].trim().length > 2) {\n        matches.push(match[1].trim());\n      }\n    }\n    locations = [...locations, ...matches];\n  });\n  \n  return locations;\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        0
+      ],
+      "id": "85b2e6ea-d27f-4ed1-a721-bb93f949c4a0",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add after the Code node\n// Node name: Email Classification\nreturn [{\n  ...item.json,\n  parsedEmail: {\n    ...item.json.parsedEmail,\n    classification: {\n      urgency: calculateUrgency(item.json),\n      category: determineCategory(item.json),\n      sentiment: analyzeSentiment(item.json.snippet || '')\n    }\n  }\n}];\n\nfunction calculateUrgency(email) {\n  const urgentTerms = ['urgent', 'asap', 'immediately', 'deadline', 'today'];\n  const text = (email.Subject + ' ' + (email.snippet || '')).toLowerCase();\n  const score = urgentTerms.filter(term => text.includes(term)).length;\n  return score > 1 ? 'high' : (score > 0 ? 'medium' : 'low');\n}\n\nfunction determineCategory(email) {\n  const text = (email.Subject + ' ' + (email.snippet || '')).toLowerCase();\n  if(text.match(/meet|appointment|schedule|calendar|call/)) return 'meeting';\n  if(text.match(/task|todo|assignment|action item|complete/)) return 'task';\n  if(text.match(/question|inquiry|help|support|assist/)) return 'inquiry';\n  return 'general';\n}\n\nfunction analyzeSentiment(text) {\n  const positiveTerms = ['thank', 'happy', 'glad', 'appreciate', 'good', 'great'];\n  const negativeTerms = ['issue', 'problem', 'concern', 'disappointed', 'urgent', 'error'];\n  \n  let score = 0;\n  const lowerText = text.toLowerCase();\n  \n  positiveTerms.forEach(term => {\n    if(lowerText.includes(term)) score += 1;\n  });\n  \n  negativeTerms.forEach(term => {\n    if(lowerText.includes(term)) score -= 1;\n  });\n  \n  return score > 0 ? 'positive' : (score < 0 ? 'negative' : 'neutral');\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "new-node-id",
+      "name": "Email Classification"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node name: Priority Manager\nconst email = $input.first().json;\nlet priorityScore = 0;\n\n// Analyze sender importance\nconst senderScore = determineSenderImportance(email.parsedEmail.from);\npriorityScore += senderScore;\n\n// Consider time sensitivity\nconst timeWords = ['today', 'tomorrow', 'asap', 'urgent', 'immediately'];\nconst text = (email.parsedEmail.subject + ' ' + email.parsedEmail.body).toLowerCase();\ntimeWords.forEach(word => {\n  if(text.includes(word)) priorityScore += 2;\n});\n\n// Factor in urgency classification\nif(email.parsedEmail.classification.urgency === 'high') {\n  priorityScore += 3;\n} else if(email.parsedEmail.classification.urgency === 'medium') {\n  priorityScore += 1;\n}\n\n// Factor in sentiment\nif(email.parsedEmail.classification.sentiment === 'negative') {\n  priorityScore += 2;\n}\n\nreturn [{\n  ...email,\n  parsedEmail: {\n    ...email.parsedEmail,\n    priorityScore,\n    processingOrder: priorityScore > 5 ? 'immediate' : (priorityScore > 2 ? 'high' : 'normal')\n  }\n}];\n\nfunction determineSenderImportance(sender) {\n  // This would ideally connect to your contacts or CRM\n  const vipSenders = ['boss@company.com', 'client@important.com', 'ceo@business.org'];\n  \n  if(!sender) return 0;\n  \n  // Check if from a VIP sender\n  for(const vip of vipSenders) {\n    if(sender.includes(vip)) return 3;\n  }\n  \n  // Domains that indicate importance\n  const importantDomains = ['client.', 'partner.', 'executive.'];\n  for(const domain of importantDomains) {\n    if(sender.includes(domain)) return 2;\n  }\n  \n  // Default score\n  return 1;\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "id": "priority-manager-node-id",
+      "name": "Priority Manager"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node name: Follow-up Scheduler\nconst email = $input.first().json;\nconst category = email.parsedEmail.classification?.category || 'unknown';\nconst requiresFollowUp = \n  category === 'inquiry' || \n  email.parsedEmail.body.toLowerCase().includes('please respond') ||\n  email.parsedEmail.body.toLowerCase().includes('let me know');\n\nif (requiresFollowUp) {\n  // Set follow-up time based on priority\n  const priorityScore = email.parsedEmail.priorityScore || 0;\n  let followUpDays = 3; // Default\n  \n  if (priorityScore > 5) {\n    followUpDays = 1; // High priority = 1 day\n  } else if (priorityScore > 2) {\n    followUpDays = 2; // Medium priority = 2 days\n  }\n  \n  const followUpDate = new Date();\n  followUpDate.setDate(followUpDate.getDate() + followUpDays);\n  \n  return [{\n    ...email,\n    followUp: {\n      needed: true,\n      date: followUpDate.toISOString(),\n      reason: 'No response received',\n      emailId: email.id || 'unknown-id',\n      threadId: email.parsedEmail.threadId,\n      subject: email.parsedEmail.subject\n    }\n  }];\n} else {\n  return [{\n    ...email,\n    followUp: {\n      needed: false\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        0
+      ],
+      "id": "follow-up-scheduler-node-id",
+      "name": "Follow-up Scheduler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node name: Smart Error Recovery\nconst errorDetails = $input.item ? $input.item.json.error : \"Unknown error\";\n\n// Log error\nconsole.log('Error occurred:', errorDetails);\n\n// Determine severity\nconst isCritical = errorDetails.includes('credential') || \n                 errorDetails.includes('authentication') ||\n                 errorDetails.includes('permission');\n\n// Create response based on severity\nif (!isCritical) {\n  // For non-critical errors, try simplified processing\n  return [{\n    fallbackMode: true,\n    originalInput: $input.item.json.input || {},\n    simplifiedAction: determineBasicAction($input.item.json),\n    errorDetails: errorDetails,\n    recoveryAttempt: true\n  }];\n} else {\n  // For critical errors, alert admin\n  return [{\n    alertAdmin: true,\n    errorDetails: errorDetails,\n    timestamp: new Date().toISOString(),\n    requiresManualIntervention: true\n  }];\n}\n\nfunction determineBasicAction(input) {\n  if (!input) return 'Unknown action needed';\n  \n  const text = (input.Subject || '') + ' ' + (input.snippet || '');\n  if(text.toLowerCase().includes('meet')) return 'Suggest scheduling meeting';\n  if(text.toLowerCase().includes('task')) return 'Create basic task';\n  return 'Send acknowledgment email';\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        0
+      ],
+      "id": "smart-error-recovery-node-id",
+      "name": "Smart Error Recovery"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "threadId",
+              "value": "={{ $json.threadId || $json.id }}"
+            },
+            {
+              "name": "conversationHistory",
+              "value": "={{ Array.isArray($json.conversationHistory) ? [...$json.conversationHistory, {date: new Date().toISOString(), action: $json.action || 'processed email', subject: $json.parsedEmail.subject}] : [{date: new Date().toISOString(), action: $json.action || 'processed email', subject: $json.parsedEmail.subject}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        0
+      ],
+      "id": "thread-tracker-node-id",
+      "name": "Thread Tracker"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        380
+      ],
+      "id": "bf0767b4-b877-4d74-85c9-8641e172367c",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        380
+      ],
+      "id": "6698bf4c-f2cf-4736-b41f-b225af02b029",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "mode": "insert"
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.1,
+      "position": [
+        -120,
+        600
+      ],
+      "id": "a4e11190-3407-4381-89f8-1a9e45608925",
+      "name": "Simple Vector Store"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-ada-002",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        880
+      ],
+      "id": "0867cb52-ca2b-4916-8e90-a10704885871",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "tTSjCS7fJHYRq397",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        80,
+        900
+      ],
+      "id": "c08302e1-92c5-4c7a-8728-1fd6641b8bb6",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1160
+      ],
+      "id": "6a6c8fe3-1c68-4c88-98a5-edfca7906ea3",
+      "name": "Recursive Character Text Splitter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Default Data Loader",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Email Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Classification": {
+      "main": [
+        [
+          {
+            "node": "Priority Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Priority Manager": {
+      "main": [
+        [
+          {
+            "node": "Follow-up Scheduler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up Scheduler": {
+      "main": [
+        [
+          {
+            "node": "Smart Error Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smart Error Recovery": {
+      "main": [
+        [
+          {
+            "node": "Thread Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thread Tracker": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Vector Store": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "853460fd-3338-4ae8-816f-24ee4af545d3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "77309938c3772c43411cf25de4cc6eb2ac5eb611cab0fd8d8417f60d09865222"
+  },
+  "id": "tAa88SJRBIwxMxqZ",
+  "tags": []
+}

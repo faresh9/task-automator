@@ -1,0 +1,449 @@
+{
+  "name": "automation_refined",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "c3270fc7-aa10-49f3-be69-4efa10ce4204",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4VQeAkktuATeJBvt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an email processing assistant that identifies actions needed and uses the appropriate tools to accomplish them.\\n\\nCRITICAL INSTRUCTIONS:\\n1. ALWAYS use one of the provided tools - NEVER suggest actions without using a tool\\n2. For ANY mention of meetings, calls, or appointments → use the Google Calendar tool\\n3. For ANY tasks, todos, assignments, or action items → use the Google Tasks tool\\n4. For ANY email requiring a response → use the Gmail tool to send a reply\\n5. ALWAYS extract precise dates, times, attendees, and all other required information\\n6. If information is missing but required by a tool, make a reasonable inference based on context\\n\\nWORKFLOW:\\n1. Read the email completely\\n2. Identify the primary purpose (meeting, task, needs reply)\\n3. Extract ALL relevant details (dates, times, people, subjects)\\n4. Select and use the appropriate tool with the extracted information\\n5. NEVER skip using a tool when action is needed"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        840,
+        0
+      ],
+      "id": "601199fb-c8cc-41d8-a8c6-bc88e7df854b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "29e786c5-bca3-4416-b531-9a621b4d3f7a",
+              "name": "chatInput",
+              "value": "={{ $json.parsedEmail.from }}\\nSubject: {{ $json.parsedEmail.subject }}\\nBody: {{ $json.parsedEmail.body }}\\n\\nPossible Dates: {{ $json.parsedEmail.structured.possibleDates.join(', ') }}\\nPossible Times: {{ $json.parsedEmail.structured.possibleTimes.join(', ') }}\\nPeople Mentioned: {{ $json.parsedEmail.structured.mentionedPeople.join(', ') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "id": "c79f6acc-f41c-4bdf-9009-f47ec31eddb7",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4-turbo-preview",
+          "mode": "list",
+          "cachedResultName": "gpt-4-turbo-preview"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        420
+      ],
+      "id": "608241f1-45b5-450c-b786-3cf5dfdac925",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "tTSjCS7fJHYRq397",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=email_{{ $('Gmail Trigger').item.json.id }}",
+        "contextWindowLength": 100
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        420
+      ],
+      "id": "62bdc8e0-912a-4916-b2b7-da52ccc7af90",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "fharoun120@gmail.com",
+          "mode": "list",
+          "cachedResultName": "fharoun120@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "useDefaultReminders": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Use_Default_Reminders', ``, 'boolean') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Attendees', ``, 'string') }}"
+          ],
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Description', ``, 'string') }}",
+          "location": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Location', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        700
+      ],
+      "id": "2e767528-a179-4f91-bf8a-682463f5da7d",
+      "name": "Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "V5gh5GwZiOsUgWqE",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "task": "MTIyMjEzMzI2MDI2MTIwNjkwNDU6MDow",
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+        "additionalFields": {
+          "completed": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Completion_Date', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        680
+      ],
+      "id": "d052ebb1-1ffb-4e4c-b2a8-d9db805d8d78",
+      "name": "Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "qQNaFgnXYjrJHZT8",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.From }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        1000,
+        700
+      ],
+      "id": "c6df26e7-287a-49b9-99b7-7f6535dc93ce",
+      "name": "Gmail",
+      "webhookId": "e4a01c65-0dc2-4ae7-894f-29cf5e22164f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4VQeAkktuATeJBvt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// New Function Node: Enhanced Email Parser\nlet item = $input.first();\nreturn [{\n  ...item.json,\n  parsedEmail: {\n    from: item.json.From || \"Unknown\",\n    subject: item.json.Subject || \"No Subject\",\n    body: item.json.snippet || \"\",\n    fullBody: item.json.body || item.json.snippet || \"\",\n    date: item.json.Date || new Date().toISOString(),\n    structured: {\n      possibleDates: extractDates(item.json.snippet || \"\"),\n      possibleTimes: extractTimes(item.json.snippet || \"\"),\n      mentionedPeople: extractPeople(item.json.snippet || \"\"),\n      keywords: extractKeywords(item.json.snippet || \"\")\n    }\n  }\n}];\n\n// Helper functions\nfunction extractDates(text) {\n  const datePatterns = [\n    /\\b\\d{4}-\\d{2}-\\d{2}\\b/g,                     // YYYY-MM-DD\n    /\\b\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}\\b/g,             // MM/DD/YYYY or DD/MM/YYYY\n    /\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \\d{1,2}(?:st|nd|rd|th)?,? \\d{2,4}\\b/gi // Month Day, Year\n  ];\n  \n  let dates = [];\n  datePatterns.forEach(pattern => {\n    const matches = text.match(pattern) || [];\n    dates = [...dates, ...matches];\n  });\n  return dates;\n}\n\nfunction extractTimes(text) {\n  const timePattern = /\\b\\d{1,2}[:]\\d{2}\\s*(?:am|pm|AM|PM)?\\b/g;\n  return text.match(timePattern) || [];\n}\n\nfunction extractPeople(text) {\n  // Simple extraction - could be enhanced with NER\n  const emailPattern = /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g;\n  return text.match(emailPattern) || [];\n}\n\nfunction extractKeywords(text) {\n  const stopWords = ['i', 'me', 'my', 'myself', 'we', 'our', 'the', 'and', 'but'];\n  const words = text.toLowerCase().replace(/[^\\w\\s]/g, '').split(/\\s+/);\n  return words\n    .filter(word => word.length > 2 && !stopWords.includes(word))\n    .slice(0, 10);\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        0
+      ],
+      "id": "85b2e6ea-d27f-4ed1-a721-bb93f949c4a0",
+      "name": "Code"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        340
+      ],
+      "id": "bf0767b4-b877-4d74-85c9-8641e172367c",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        340
+      ],
+      "id": "6698bf4c-f2cf-4736-b41f-b225af02b029",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "mode": "insert"
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "id": "a4e11190-3407-4381-89f8-1a9e45608925",
+      "name": "Simple Vector Store"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-ada-002",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        880
+      ],
+      "id": "0867cb52-ca2b-4916-8e90-a10704885871",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "tTSjCS7fJHYRq397",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        80,
+        900
+      ],
+      "id": "c08302e1-92c5-4c7a-8728-1fd6641b8bb6",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1160
+      ],
+      "id": "6a6c8fe3-1c68-4c88-98a5-edfca7906ea3",
+      "name": "Recursive Character Text Splitter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Vector Store": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dd7b2b24-00ee-4f4a-a1d4-e187789caca9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "77309938c3772c43411cf25de4cc6eb2ac5eb611cab0fd8d8417f60d09865222"
+  },
+  "id": "tAa88SJRBIwxMxqZ",
+  "tags": []
+}

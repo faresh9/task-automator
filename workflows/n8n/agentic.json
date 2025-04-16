@@ -1,0 +1,796 @@
+{
+    "name": "agentic-task-automator",
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "filters": {}
+        },
+        "type": "n8n-nodes-base.gmailTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "96d35f9c-e953-4243-b7d5-261b28d04745",
+        "name": "Gmail Trigger",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "4VQeAkktuATeJBvt",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "collection": "sender_history",
+          "operation": "find",
+          "filter": {
+            "email": "={{ $json.from }}"
+          },
+          "options": {
+            "sort": {
+              "timestamp": -1
+            },
+            "limit": 10
+          }
+        },
+        "type": "n8n-nodes-base.mongodb",
+        "typeVersion": 1,
+        "position": [
+          200,
+          -120
+        ],
+        "id": "37cc1ae2-bf65-4e74-8ef1-c9b76d96a598",
+        "name": "Get History",
+        "credentials": {
+          "mongodb": {
+            "id": "mongodb-credentials",
+            "name": "MongoDB Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Extract email details\nconst email = items[0].json;\nconst senderHistory = $node[\"Get History\"].json || [];\n\n// Format email for analysis\nconst formattedEmail = `From: ${email.from}\\nSubject: ${email.subject}\\n\\n${email.snippet}`;\n\n// Extract sender patterns and preferences\nconst preferredTools = {};\nlet totalInteractions = 0;\nlet responseRate = 0;\nlet commonTopics = [];\n\nif (senderHistory.length > 0) {\n  // Count tool usage\n  senderHistory.forEach(record => {\n    if (record.tool) {\n      preferredTools[record.tool] = (preferredTools[record.tool] || 0) + 1;\n    }\n    if (record.topics) {\n      commonTopics = [...commonTopics, ...record.topics];\n    }\n  });\n  \n  // Calculate response metrics\n  const responses = senderHistory.filter(record => record.responseSent);\n  totalInteractions = senderHistory.length;\n  responseRate = responses.length / totalInteractions;\n  \n  // Count topic frequency\n  const topicCount = {};\n  commonTopics.forEach(topic => {\n    topicCount[topic] = (topicCount[topic] || 0) + 1;\n  });\n  \n  // Get top 3 topics\n  commonTopics = Object.entries(topicCount)\n    .sort((a, b) => b[1] - a[1])\n    .slice(0, 3)\n    .map(entry => entry[0]);\n}\n\n// Create enriched context\nreturn [{\n  json: {\n    email_text: formattedEmail,\n    original_email: email,\n    context: {\n      sender: email.from,\n      timestamp: new Date().toISOString(),\n      history: {\n        interactionCount: totalInteractions,\n        responseRate: responseRate,\n        commonTopics: commonTopics,\n        preferredTools: preferredTools\n      }\n    }\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ],
+        "id": "fca2fa88-79b8-4947-baeb-1d4da4195352",
+        "name": "Context Enhancement"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "ft:gpt-3.5-turbo-0125:personal:task-automator-combined:BCsiqoAn",
+            "mode": "id"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "You are an email analyzer with access to interaction history. Extract the following information from the provided email: category (Meeting Request, Task Request, Action Item, General), intent, sentiment, importance, meeting_details (with title, proposed_datetime in ISO format, duration_hours, location, attendees), tasks (with description, assigned_to, deadline, priority), people_mentioned, follow_up_actions, reply_suggestions. Consider the sender's history and common topics when analyzing. Return a JSON object with these fields plus a confidence score (0-1) for your analysis.",
+                "role": "system"
+              },
+              {
+                "content": "={{ $json.email_text }}\n\nSender history: {{ JSON.stringify($json.context.history) }}"
+              }
+            ]
+          },
+          "jsonOutput": true,
+          "options": {
+            "temperature": 0.2
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1.8,
+        "position": [
+          600,
+          0
+        ],
+        "id": "75725302-ad5a-4511-adec-729bb6fd94df",
+        "name": "OpenAI Analysis",
+        "credentials": {
+          "openAiApi": {
+            "id": "tTSjCS7fJHYRq397",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Get analysis results\nconst analysis = items[0].json.message.content;\nconst context = $node[\"Context Enhancement\"].json.context;\n\n// Define available strategies\nconst strategies = [\n  {\n    name: \"calendar\",\n    confidence: analysis.category === \"Meeting Request\" ? 0.9 : 0.1,\n    historicalSuccess: getHistoricalMetric(context, \"calendar\"),\n    description: \"Create calendar event\"\n  },\n  {\n    name: \"task_trello\",\n    confidence: (analysis.category === \"Task Request\" && analysis.tasks && analysis.tasks.length > 0) ? 0.85 : 0.1,\n    historicalSuccess: getHistoricalMetric(context, \"trello\"),\n    description: \"Create Trello task\"\n  },\n  {\n    name: \"task_google\",\n    confidence: (analysis.category === \"Task Request\" && analysis.tasks && analysis.tasks.length > 0) ? 0.80 : 0.1,\n    historicalSuccess: getHistoricalMetric(context, \"google_tasks\"),\n    description: \"Create Google Tasks item\"\n  },\n  {\n    name: \"clarification\",\n    confidence: analysis.confidence < 0.7 ? 0.75 : 0.1,\n    historicalSuccess: 0.9, // Asking for clarification usually works\n    description: \"Request clarification\"\n  },\n  {\n    name: \"general_reply\",\n    confidence: 0.5, // Fallback option\n    historicalSuccess: 0.7,\n    description: \"Send general reply\"\n  }\n];\n\n// Helper function to get success metrics for a tool\nfunction getHistoricalMetric(context, toolName) {\n  if (!context || !context.history || !context.history.preferredTools) {\n    return 0.5; // Default if no history\n  }\n  \n  // If this tool appears in history, boost its score\n  if (context.history.preferredTools[toolName]) {\n    return 0.7;\n  }\n  \n  return 0.5; // Default\n}\n\n// Calculate weighted scores\nstrategies.forEach(s => {\n  // Weighted score: 60% confidence + 40% historical success\n  s.score = (s.confidence * 0.6) + (s.historicalSuccess * 0.4);\n});\n\n// Sort by score\nstrategies.sort((a, b) => b.score - a.score);\n\n// Return the selected strategy and analysis\nreturn [{\n  json: {\n    strategy: strategies[0].name,\n    score: strategies[0].score,\n    description: strategies[0].description,\n    alternativeStrategies: strategies.slice(1, 3),\n    allStrategies: strategies,\n    analysis: analysis,\n    context: context,\n    original_email: $node[\"Context Enhancement\"].json.original_email\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          800,
+          0
+        ],
+        "id": "a45c9b10-321f-4e3d-9cb8-1574c8f8d56a",
+        "name": "Strategy Selection"
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.strategy }}",
+                      "rightValue": "calendar",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "id": "a01c3633-082a-49e9-83d7-1c779f427274"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "09b5f01a-d0b1-46d5-b332-b99a2eb102aa",
+                      "leftValue": "={{ $json.strategy }}",
+                      "rightValue": "task_trello",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "2f5c0a12-e413-4e76-8a54-9d859f236c7a",
+                      "leftValue": "={{ $json.strategy }}",
+                      "rightValue": "task_google",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "1bc90b34-7dd2-4695-aff7-91adc0d11445",
+                      "leftValue": "={{ $json.strategy }}",
+                      "rightValue": "clarification",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": "5"
+          }
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          1000,
+          0
+        ],
+        "id": "701e1ec6-13bf-4856-aa19-99cf605227f6",
+        "name": "Action Router"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare calendar event data\nconst data = items[0].json;\nconst analysis = data.analysis;\nconst meetingDetails = analysis.meeting_details || {};\n\n// Set default values if missing\nconst title = meetingDetails.title || `Meeting: ${data.original_email.subject}`;\nlet startTime = meetingDetails.proposed_datetime;\nlet duration = meetingDetails.duration_hours || 1;\nlet location = meetingDetails.location || \"To be determined\";\n\n// If no specific time, schedule for tomorrow at 10AM\nif (!startTime) {\n  const tomorrow = new Date();\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  tomorrow.setHours(10, 0, 0, 0);\n  startTime = tomorrow.toISOString();\n}\n\n// Format attendees\nlet attendees = [];\nif (meetingDetails.attendees && Array.isArray(meetingDetails.attendees)) {\n  attendees = meetingDetails.attendees.filter(a => a && typeof a === \"string\");\n}\n\n// Add sender if not already included\nif (data.context && data.context.sender) {\n  if (!attendees.includes(data.context.sender)) {\n    attendees.push(data.context.sender);\n  }\n}\n\n// Create description with context\nlet description = meetingDetails.description || \"\";\nif (analysis.follow_up_actions) {\n  description += \"\\n\\nFollow-up actions: \" + analysis.follow_up_actions;\n}\n\nreturn [{\n  json: {\n    calendarEvent: {\n      summary: title,\n      location: location,\n      description: description,\n      start: startTime,\n      end: null, // Will be calculated by the Calendar node\n      duration: duration,\n      attendees: attendees\n    },\n    original: data\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          -200
+        ],
+        "id": "5cc9fb9b-aa76-48ae-b25d-c966a1f2d3d1",
+        "name": "Prepare Calendar Event"
+      },
+      {
+        "parameters": {
+          "calendar": {
+            "__rl": true,
+            "value": "fharoun120@gmail.com",
+            "mode": "list",
+            "cachedResultName": "fharoun120@gmail.com"
+          },
+          "start": "={{ $json.calendarEvent.start }}",
+          "end": "={{ new Date(new Date($json.calendarEvent.start).getTime() + ($json.calendarEvent.duration * 60 * 60 * 1000)).toISOString() }}",
+          "additionalFields": {
+            "attendees": "={{ $json.calendarEvent.attendees }}",
+            "description": "={{ $json.calendarEvent.description }}",
+            "location": "={{ $json.calendarEvent.location }}",
+            "summary": "={{ $json.calendarEvent.summary }}"
+          }
+        },
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1.3,
+        "position": [
+          1400,
+          -200
+        ],
+        "id": "cf6daeb3-e065-4cc6-9bba-5a92fae30026",
+        "name": "Create Calendar Event",
+        "credentials": {
+          "googleCalendarOAuth2Api": {
+            "id": "V5gh5GwZiOsUgWqE",
+            "name": "Google Calendar account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare task data\nconst data = items[0].json;\nconst analysis = data.analysis;\nlet tasks = analysis.tasks || [];\n\n// Normalize tasks to array format\nif (!Array.isArray(tasks)) {\n  tasks = [tasks];\n}\n\n// If no tasks detected but we're in task branch, create default task\nif (tasks.length === 0) {\n  tasks = [{\n    description: `Task from email: ${data.original_email.subject}`,\n    assigned_to: 'Me',\n    priority: analysis.importance || 'Medium',\n    deadline: null\n  }];\n}\n\n// Format the first task for Trello\nconst task = tasks[0];\n\n// Set defaults for missing values\nconst title = task.description || `Task: ${data.original_email.subject}`;\nlet dueDate = task.deadline;\n\n// If no deadline, set to a week from now\nif (!dueDate) {\n  const nextWeek = new Date();\n  nextWeek.setDate(nextWeek.getDate() + 7);\n  dueDate = nextWeek.toISOString();\n}\n\n// Set priority label\nconst priority = task.priority || analysis.importance || 'Medium';\nlet labelColor;\nswitch(priority.toLowerCase()) {\n  case 'high':\n  case 'urgent':\n    labelColor = 'red';\n    break;\n  case 'medium':\n    labelColor = 'yellow';\n    break;\n  default:\n    labelColor = 'green';\n}\n\n// Create description with context\nlet description = `From email: ${data.original_email.subject}\\n\\n`;\nif (task.assigned_to) {\n  description += `Assigned to: ${task.assigned_to}\\n`;\n}\ndescription += `Priority: ${priority}\\n`;\nif (analysis.follow_up_actions) {\n  description += `\\nFollow-up actions: ${analysis.follow_up_actions}`;\n}\n\nreturn [{\n  json: {\n    trelloCard: {\n      name: title,\n      desc: description,\n      due: dueDate,\n      labelColor: labelColor\n    },\n    tasks: tasks,\n    original: data\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          -100
+        ],
+        "id": "b5cc9fb9-aa76-48ae-b25d-c966a1f2d3d1",
+        "name": "Prepare Trello Task"
+      },
+      {
+        "parameters": {
+          "board": {
+            "__rl": true,
+            "value": "YOUR_BOARD_ID",
+            "mode": "list",
+            "cachedResultName": "Task Board"
+          },
+          "list": {
+            "__rl": true,
+            "value": "YOUR_LIST_ID",
+            "mode": "list",
+            "cachedResultName": "To Do"
+          },
+          "name": "={{ $json.trelloCard.name }}",
+          "description": "={{ $json.trelloCard.desc }}",
+          "due": "={{ $json.trelloCard.due }}",
+          "labels": [
+            "={{ $json.trelloCard.labelColor }}"
+          ]
+        },
+        "name": "Create Trello Card",
+        "type": "n8n-nodes-base.trello",
+        "typeVersion": 1,
+        "position": [
+          1400,
+          -100
+        ],
+        "id": "8e23dd01-b659-4a0a-a1a4-4c3267e614d2",
+        "credentials": {
+          "trelloApi": {
+            "id": "trello-credentials",
+            "name": "Trello Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare Google Task data\nconst data = items[0].json;\nconst analysis = data.analysis;\nlet tasks = analysis.tasks || [];\n\n// Normalize tasks to array format\nif (!Array.isArray(tasks)) {\n  tasks = [tasks];\n}\n\n// If no tasks detected but we're in task branch, create default task\nif (tasks.length === 0) {\n  tasks = [{\n    description: `Task from email: ${data.original_email.subject}`,\n    assigned_to: 'Me',\n    priority: analysis.importance || 'Medium',\n    deadline: null\n  }];\n}\n\n// Format the first task for Google Tasks\nconst task = tasks[0];\n\n// Set defaults for missing values\nconst title = task.description || `Task: ${data.original_email.subject}`;\nlet dueDate = task.deadline;\n\n// If no deadline, set to a week from now\nif (!dueDate) {\n  const nextWeek = new Date();\n  nextWeek.setDate(nextWeek.getDate() + 7);\n  dueDate = nextWeek.toISOString().split('T')[0]; // Format as YYYY-MM-DD\n}\n\n// Create notes with context\nlet notes = `From email: ${data.original_email.subject}\\n\\n`;\nif (task.assigned_to) {\n  notes += `Assigned to: ${task.assigned_to}\\n`;\n}\nnotes += `Priority: ${task.priority || analysis.importance || 'Medium'}\\n`;\nif (analysis.follow_up_actions) {\n  notes += `\\nFollow-up actions: ${analysis.follow_up_actions}`;\n}\n\nreturn [{\n  json: {\n    googleTask: {\n      title: title,\n      notes: notes,\n      due: dueDate\n    },\n    tasks: tasks,\n    original: data\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          0
+        ],
+        "id": "13e4d8e1-e408-4961-b34a-97601d38cccf",
+        "name": "Prepare Google Task"
+      },
+      {
+        "parameters": {
+          "task": "Q1pkM0VSTHIyRnkweWRORg",
+          "title": "={{ $json.googleTask.title }}",
+          "additionalFields": {
+            "notes": "={{ $json.googleTask.notes }}",
+            "due": "={{ $json.googleTask.due }}"
+          }
+        },
+        "type": "n8n-nodes-base.googleTasks",
+        "typeVersion": 1,
+        "position": [
+          1400,
+          0
+        ],
+        "id": "931ca5e0-b99d-4346-a219-32e0ad9e4e26",
+        "name": "Create Google Task",
+        "credentials": {
+          "googleTasksOAuth2Api": {
+            "id": "qQNaFgnXYjrJHZT8",
+            "name": "Google Tasks account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepare clarification request\nconst data = items[0].json;\nconst analysis = data.analysis;\n\n// Identify what needs clarification\nlet clarificationNeeded = [];\n\n// Check for missing meeting details\nif (analysis.category === 'Meeting Request') {\n  const meeting = analysis.meeting_details || {};\n  if (!meeting.proposed_datetime) {\n    clarificationNeeded.push('When would you like to schedule the meeting?');\n  }\n  if (!meeting.title) {\n    clarificationNeeded.push('What should be the title or topic of the meeting?');\n  }\n  if (!meeting.duration_hours) {\n    clarificationNeeded.push('How long should the meeting be scheduled for?');\n  }\n}\n\n// Check for missing task details\nif (analysis.category === 'Task Request' || analysis.category === 'Action Item') {\n  const tasks = analysis.tasks || [];\n  if (tasks.length === 0) {\n    clarificationNeeded.push('Could you clarify what task needs to be created?');\n  } else {\n    const task = Array.isArray(tasks) ? tasks[0] : tasks;\n    if (!task.description) {\n      clarificationNeeded.push('Could you provide more details about the task?');\n    }\n    if (!task.deadline) {\n      clarificationNeeded.push('When is this task due?');\n    }\n  }\n}\n\n// If nothing specific identified, add generic clarification\nif (clarificationNeeded.length === 0) {\n  clarificationNeeded.push('Could you provide more details about your request?');\n  clarificationNeeded.push('I want to make sure I understand correctly before taking action.');\n}\n\n// Build the clarification message\nlet clarificationMessage = `I need some clarification on your email:\\n\\n`;\nclarificationNeeded.forEach(item => {\n  clarificationMessage += `- ${item}\\n`;\n});\n\nclarificationMessage += `\\nOnce you provide these details, I'll be able to better assist you.`;\n\nreturn [{\n  json: {\n    clarificationEmail: {\n      to: data.context.sender,\n      subject: `Re: ${data.original_email.subject}`,\n      body: clarificationMessage\n    },\n    original: data\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          100
+        ],
+        "id": "21e4d8e1-e408-4961-b34a-97601d38cccf",
+        "name": "Prepare Clarification"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $json.clarificationEmail.to }}",
+          "subject": "={{ $json.clarificationEmail.subject }}",
+          "message": "={{ $json.clarificationEmail.body }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          1400,
+          100
+        ],
+        "id": "31a36680-19ef-4ac0-856a-1e5a54f2ddb0",
+        "name": "Send Clarification",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "4VQeAkktuATeJBvt",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Generate appropriate response based on action taken\nlet lastNode;\nlet actionType;\nlet actionDetails = {};\n\n// Determine which action branch was executed\nif ($node['Create Calendar Event'].json) {\n  lastNode = $node['Create Calendar Event'];\n  actionType = 'calendar_event_created';\n  actionDetails = {\n    summary: lastNode.json.summary,\n    start: lastNode.json.start.dateTime,\n    link: lastNode.json.htmlLink\n  };\n} else if ($node['Create Trello Card'].json) {\n  lastNode = $node['Create Trello Card'];\n  actionType = 'trello_task_created';\n  actionDetails = {\n    name: lastNode.json.name,\n    url: lastNode.json.url\n  };\n} else if ($node['Create Google Task'].json) {\n  lastNode = $node['Create Google Task'];\n  actionType = 'google_task_created';\n  actionDetails = {\n    title: lastNode.json.title\n  };\n} else if ($node['Send Clarification'].json) {\n  lastNode = $node['Send Clarification'];\n  actionType = 'clarification_requested';\n} else {\n  // Fallback for general reply\n  lastNode = $node['Strategy Selection'];\n  actionType = 'general_reply';\n}\n\n// Get original data\nlet data = lastNode.json.original || $node['Strategy Selection'].json;\n\n// Create response message based on action type\nlet subject = `Re: ${data.original_email.subject}`;\nlet message = '';\n\nswitch(actionType) {\n  case 'calendar_event_created':\n    message = `I've created a calendar event based on your email:\\n\\n` +\n      `Event: ${actionDetails.summary}\\n` +\n      `When: ${new Date(actionDetails.start).toLocaleString()}\\n\\n` +\n      `You can view it here: ${actionDetails.link}\\n\\n` +\n      `Let me know if you need any changes!`;\n    break;\n    \n  case 'trello_task_created':\n    message = `I've created a task based on your email:\\n\\n` +\n      `Task: ${actionDetails.name}\\n` +\n      `You can view it here: ${actionDetails.url}\\n\\n` +\n      `I'll make sure this gets completed.`;\n    break;\n    \n  case 'google_task_created':\n    message = `I've added a task to my list based on your email:\\n\\n` +\n      `Task: ${actionDetails.title}\\n\\n` +\n      `I'll take care of this and update you when it's done.`;\n    break;\n    \n  case 'clarification_requested':\n    // Skip creating another message since clarification was already sent\n    return [{json: {skipResponse: true, actionType: actionType}}];\n    \n  default:\n    // Use AI-generated reply suggestions if available\n    if (data.analysis && data.analysis.reply_suggestions) {\n      message = data.analysis.reply_suggestions;\n    } else {\n      message = `I've received your email and will take appropriate action.\\n\\nThank you!`;\n    }\n}\n\nreturn [{\n  json: {\n    responseEmail: {\n      to: data.context.sender,\n      subject: subject,\n      body: message\n    },\n    actionType: actionType,\n    actionDetails: actionDetails,\n    original: data\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1800,
+          -160
+        ],
+        "id": "f7c34d06-2e31-4b3d-b38d-8a7a339fd98c",
+        "name": "Generate Response"
+      },
+      {
+        "parameters": {
+          "operation": "insertOne",
+          "collection": "action_history",
+          "document": {
+            "email": "={{ $json.original.original_email.from }}",
+            "subject": "={{ $json.original.original_email.subject }}",
+            "timestamp": "={{ new Date().toISOString() }}",
+            "actionType": "={{ $json.actionType }}",
+            "strategy": "={{ $json.original.strategy }}",
+            "score": "={{ $json.original.score }}",
+            "details": "={{ $json.actionDetails }}",
+            "analysis": {
+              "category": "={{ $json.original.analysis.category }}",
+              "intent": "={{ $json.original.analysis.intent }}",
+              "sentiment": "={{ $json.original.analysis.sentiment }}",
+              "confidence": "={{ $json.original.analysis.confidence || 0.7 }}"
+            }
+          },
+          "options": {}
+        },
+        "name": "Record Action",
+        "type": "n8n-nodes-base.mongodb",
+        "typeVersion": 1,
+        "position": [
+          1800,
+          -40
+        ],
+        "id": "f5068b42-94c6-4ef0-83e5-c42cd910cb99",
+        "credentials": {
+          "mongodb": {
+            "id": "mongodb-credentials",
+            "name": "MongoDB Account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{ $json.skipResponse }}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "name": "Skip Response?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          2000,
+          -160
+        ],
+        "id": "0c936f70-e0ac-4fb2-9719-e5d04ff489cc"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $json.responseEmail.to }}",
+          "subject": "={{ $json.responseEmail.subject }}",
+          "message": "={{ $json.responseEmail.body }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          2200,
+          -240
+        ],
+        "id": "1ba9c678-d388-4afd-9e42-395b59d98468",
+        "name": "Send Response",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "4VQeAkktuATeJBvt",
+            "name": "Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// This node performs reflection on the action taken\n// It analyzes what happened and updates strategy preferences\n\nconst actionData = items[0].json;\nconst originalStrategy = actionData.original.strategy;\nconst originalScore = actionData.original.score;\nconst email = actionData.original.original_email.from;\n\n// In a real implementation, we would analyze multiple factors:\n// 1. Was this the right strategy for this email?\n// 2. Was the action successful?\n// 3. Should we adjust future strategy selection?\n\n// This is a simplified reflection that just reinforces the chosen strategy\nconst reflection = {\n  timestamp: new Date().toISOString(),\n  email: email,\n  strategy: originalStrategy,\n  originalScore: originalScore * 1.05, // Slightly increase the score for next time\n  insights: [\n    `Strategy ${originalStrategy} was applied for email from ${email}`,\n    `Consider increasing ${originalStrategy} confidence for similar emails in the future`\n  ],\n  learningApplied: `Reinforced ${originalStrategy} for sender ${email}`\n};\n\nreturn [{\n  json: {\n    reflection: reflection,\n    original: actionData\n  }\n}];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2400,
+          -160
+        ],
+        "id": "a3028ff8-2515-4962-bd51-bfe501e601d8",
+        "name": "Reflection Engine"
+      },
+      {
+        "parameters": {
+          "operation": "updateOne",
+          "collection": "sender_history",
+          "filter": {
+            "email": "={{ $json.original.original_email.from }}"
+          },
+          "update": {
+            "$set": {
+              "lastAction": "={{ $json.original.actionType }}",
+              "preferredTools": "={{ $json.original.context.history.preferredTools }}",
+              "lastUpdated": "={{ new Date().toISOString() }}"
+            }
+          },
+          "options": {
+            "upsert": true
+          }
+        },
+        "type": "n8n-nodes-base.mongodb",
+        "typeVersion": 1,
+        "position": [
+          2600,
+          -160
+        ],
+        "id": "b3028ff8-2515-4962-bd51-bfe501e601d8",
+        "name": "Update Sender History",
+        "credentials": {
+          "mongodb": {
+            "id": "mongodb-credentials",
+            "name": "MongoDB Account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Gmail Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get History",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get History": {
+        "main": [
+          [
+            {
+              "node": "Context Enhancement",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Context Enhancement": {
+        "main": [
+          [
+            {
+              "node": "OpenAI Analysis",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI Analysis": {
+        "main": [
+          [
+            {
+              "node": "Strategy Selection",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Strategy Selection": {
+        "main": [
+          [
+            {
+              "node": "Action Router",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Action Router": {
+        "main": [
+          [
+            {
+              "node": "Prepare Calendar Event",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Prepare Trello Task",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Prepare Google Task",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Prepare Clarification",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Calendar Event": {
+        "main": [
+          [
+            {
+              "node": "Create Calendar Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Calendar Event": {
+        "main": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Trello Task": {
+        "main": [
+          [
+            {
+              "node": "Create Trello Card",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Trello Card": {
+        "main": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Google Task": {
+        "main": [
+          [
+            {
+              "node": "Create Google Task",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Google Task": {
+        "main": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Clarification": {
+        "main": [
+          [
+            {
+              "node": "Send Clarification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Clarification": {
+        "main": [
+          [
+            {
+              "node": "Generate Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate Response": {
+        "main": [
+          [
+            {
+              "node": "Record Action",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Skip Response?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Record Action": {
+        "main": []
+      },
+      "Skip Response?": {
+        "main": [
+          [
+            {
+              "node": "Send Response",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Send Response": {
+        "main": [
+          [
+            {
+              "node": "Reflection Engine",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Reflection Engine": {
+        "main": [
+          [
+            {
+              "node": "Update Sender History",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1",
+      "timezone": "America/New_York",
+      "saveExecutionProgress": true,
+      "saveManualExecutions": true,
+      "callerPolicy": "workflowsFromSameOwner",
+      "errorWorkflow": ""
+    },
+    "versionId": "1",
+    "meta": {
+      "instanceId": "workflow-instance",
+      "templateCredsSetupCompleted": true
+    },
+    "id": "agentic-task-automator",
+    "tags": []
+}
