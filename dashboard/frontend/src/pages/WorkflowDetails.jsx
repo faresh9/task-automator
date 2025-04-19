@@ -13,7 +13,8 @@ import {
   CircularProgress,
   Tabs,
   Tab,
-  Divider
+  Divider,
+  Alert
 } from '@mui/material';
 import { useWorkflow } from '../context/WorkflowContext';
 import ExecutionTable from '../components/ExecutionTable';
@@ -52,7 +53,15 @@ const WorkflowDetails = () => {
   if (!currentWorkflow) {
     return (
       <Container>
-        <Typography variant="h5">Workflow not found</Typography>
+        <Typography variant="h5" gutterBottom>Workflow not found</Typography>
+        <Alert severity="error">
+          Could not find workflow with ID: {id}. Make sure n8n is running and the workflow exists.
+        </Alert>
+        <Box mt={2}>
+          <Button variant="contained" onClick={() => fetchWorkflowById(id)}>
+            Retry
+          </Button>
+        </Box>
       </Container>
     );
   }

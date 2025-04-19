@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useContext, useCallback, useEffect } from 'react';
 import { useWorkflowAPI } from '../hooks/useWorkflowAPI';
 
 const WorkflowContext = createContext();
@@ -10,6 +10,8 @@ export const WorkflowProvider = ({ children }) => {
     fetchWorkflows: apiFetchWorkflows, 
     fetchWorkflowById: apiFetchWorkflowById,
     fetchExecutions: apiFetchExecutions,
+    fetchStats: apiFetchStats,
+    fetchEmails: apiFetchEmails,
     toggleWorkflowState: apiToggleWorkflowState
   } = useWorkflowAPI();
   
@@ -17,12 +19,22 @@ export const WorkflowProvider = ({ children }) => {
   const [currentWorkflow, setCurrentWorkflow] = useState(null);
   const [executions, setExecutions] = useState([]);
   const [stats, setStats] = useState({
-    emailsProcessed: 27,
-    calendarEvents: 8,
-    tasksCreated: 15,
-    errors: 2,
-    successRate: 92
+    emailsProcessed: 0,
+    calendarEvents: 0,
+    tasksCreated: 0,
+    errors: 0,
+    successRate: 0
   });
+  const [emails, setEmails] = useState([]);
+  
+  // Fetch stats on initial load
+  useEffect(() => {
+    fetchStats();
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
   
   const fetchWorkflows = useCallback(async () => {
     const data = await apiFetchWorkflows();
@@ -34,16 +46,6 @@ export const WorkflowProvider = ({ children }) => {
   const fetchWorkflowById = useCallback(async (id) => {
     const data = await apiFetchWorkflowById(id);
     if (data) {
-      // Add some sample stats if not present
-      if (!data.stats) {
-        data.stats = {
-          emailsProcessed: 27,
-          calendarEvents: 8,
-          tasksCreated: 15,
-          errors: 2,
-          successRate: 92
-        };
-      }
       setCurrentWorkflow(data);
     }
   }, [apiFetchWorkflowById]);
@@ -52,26 +54,22 @@ export const WorkflowProvider = ({ children }) => {
     const data = await apiFetchExecutions(workflowId);
     if (data && Array.isArray(data)) {
       setExecutions(data);
-    } else {
-      // Use sample data if API fails
-      setExecutions([
-        { 
-          id: '1234567890abcdef', 
-          startedAt: new Date().toISOString(), 
-          stoppedAt: new Date().toISOString(),
-          status: 'success',
-          node: 'AI Agent' 
-        },
-        { 
-          id: '2345678901abcdef', 
-          startedAt: new Date(Date.now() - 3600000).toISOString(), 
-          stoppedAt: new Date(Date.now() - 3590000).toISOString(),
-          status: 'error',
-          node: 'Gmail' 
-        }
-      ]);
     }
   }, [apiFetchExecutions]);
+  
+  const fetchStats = useCallback(async () => {
+    const data = await apiFetchStats();
+    if (data) {
+      setStats(data);
+    }
+  }, [apiFetchStats]);
+  
+  const fetchEmails = useCallback(async () => {
+    const data = await apiFetchEmails();
+    if (data && Array.isArray(data)) {
+      setEmails(data);
+    }
+  }, [apiFetchEmails]);
   
   const toggleWorkflowState = useCallback(async (workflowId) => {
     const data = await apiToggleWorkflowState(workflowId);
@@ -94,9 +92,12 @@ export const WorkflowProvider = ({ children }) => {
     error,
     stats,
     executions,
+    emails,
     fetchWorkflows,
     fetchWorkflowById,
     fetchExecutions,
+    fetchStats,
+    fetchEmails,
     toggleWorkflowState,
   };
   

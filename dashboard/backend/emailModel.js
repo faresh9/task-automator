@@ -1,21 +1,5 @@
-const mongoose = require('mongoose');
+// This file now re-exports the database module for compatibility with existing imports
+// You could eventually refactor code to import directly from database.js
+const { db } = require('./database');
 
-const EmailSchema = new mongoose.Schema({
-  emailId: String,
-  threadId: String,
-  from: String,
-  subject: String,
-  receivedAt: Date,
-  processedAt: Date,
-  category: String,
-  priority: String,
-  actions: [{
-    type: String,
-    details: Object,
-    success: Boolean
-  }],
-  followUpNeeded: Boolean,
-  followUpDate: Date
-});
-
-module.exports = mongoose.model('Email', EmailSchema);
+module.exports = { db };

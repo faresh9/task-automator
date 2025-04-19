@@ -8,6 +8,7 @@ import { useWorkflow } from '../context/WorkflowContext';
 import WorkflowCard from '../components/WorkflowCard';
 import StatsCard from '../components/StatsCard';
 import ExecutionTable from '../components/ExecutionTable';
+import ConnectionStatus from '../components/ConnectionStatus';
 
 const Dashboard = () => {
   const { workflows, fetchWorkflows, stats, executions, fetchExecutions } = useWorkflow();
@@ -23,6 +24,7 @@ const Dashboard = () => {
   
   return (
     <Container maxWidth="lg">
+      <ConnectionStatus />
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
           Email Automation Dashboard

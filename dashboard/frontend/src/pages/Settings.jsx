@@ -1,170 +1,187 @@
 import React, { useState } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Card, 
+import {
+  Container,
+  Typography,
+  Box,
+  Card,
   CardContent,
   TextField,
   Button,
   Grid,
-  FormControlLabel,
   Switch,
-  Divider,
-  Alert
+  FormControlLabel,
+  Alert,
+  Snackbar
 } from '@mui/material';
+import SaveIcon from '@mui/icons-material/Save';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
-    n8nApiUrl: 'http://localhost:5678',
+    n8nUrl: 'http://localhost:5678',
     n8nApiKey: '',
-    emailNotifications: true,
-    notificationEmail: '',
-    dashboardRefreshRate: 30,
+    autoRefresh: true,
+    refreshInterval: 30,
+    notificationsEnabled: true,
+    emailDigest: true
   });
   
-  const [saved, setSaved] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setSettings({
-      ...settings,
-      [name]: value
+    const { name, value, type, checked } = e.target;
+    setSettings(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+  
+  const handleSave = () => {
+    // Here you would save to localStorage or backend
+    localStorage.setItem('dashboard-settings', JSON.stringify(settings));
+    
+    setSnackbar({
+      open: true,
+      message: 'Settings saved successfully',
+      severity: 'success'
     });
   };
   
-  const handleSwitchChange = (e) => {
-    const { name, checked } = e.target;
-    setSettings({
-      ...settings,
-      [name]: checked
-    });
-  };
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Save settings to local storage or API
-    localStorage.setItem('dashboardSettings', JSON.stringify(settings));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSnackbarClose = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
   
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="lg">
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Dashboard Settings
+          Settings
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Configure your dashboard and notification preferences
+          Configure your dashboard preferences
         </Typography>
       </Box>
       
-      {saved && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Settings saved successfully!
-        </Alert>
-      )}
-      
-      <form onSubmit={handleSubmit}>
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              n8n Connection
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                API Configuration
+              </Typography>
+              
+              <Box component="form" sx={{ mt: 3 }}>
                 <TextField
                   fullWidth
-                  label="n8n API URL"
-                  name="n8nApiUrl"
-                  value={settings.n8nApiUrl}
+                  label="n8n URL"
+                  name="n8nUrl"
+                  variant="outlined"
+                  margin="normal"
+                  value={settings.n8nUrl}
                   onChange={handleChange}
-                  helperText="The URL of your n8n instance, e.g., http://localhost:5678"
+                  helperText="The URL where your n8n instance is running"
                 />
-              </Grid>
-              <Grid item xs={12}>
+                
                 <TextField
                   fullWidth
                   label="n8n API Key"
                   name="n8nApiKey"
+                  type="password"
+                  variant="outlined"
+                  margin="normal"
                   value={settings.n8nApiKey}
                   onChange={handleChange}
-                  type="password"
-                  helperText="Your n8n API key for authentication"
+                  helperText="API key for accessing n8n"
                 />
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
         
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Notifications
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Dashboard Options
+              </Typography>
+              
+              <Box sx={{ mt: 3 }}>
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.emailNotifications}
-                      onChange={handleSwitchChange}
-                      name="emailNotifications"
+                      checked={settings.autoRefresh}
+                      onChange={handleChange}
+                      name="autoRefresh"
                     />
                   }
-                  label="Email Notifications"
+                  label="Auto-refresh data"
                 />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Notification Email"
-                  name="notificationEmail"
-                  value={settings.notificationEmail}
-                  onChange={handleChange}
-                  disabled={!settings.emailNotifications}
-                  helperText="Email address to receive notifications"
+                
+                {settings.autoRefresh && (
+                  <TextField
+                    fullWidth
+                    label="Refresh Interval (seconds)"
+                    name="refreshInterval"
+                    type="number"
+                    variant="outlined"
+                    margin="normal"
+                    value={settings.refreshInterval}
+                    onChange={handleChange}
+                    inputProps={{ min: 10, max: 300 }}
+                  />
+                )}
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.notificationsEnabled}
+                      onChange={handleChange}
+                      name="notificationsEnabled"
+                    />
+                  }
+                  label="Enable notifications"
                 />
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-        
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Dashboard Preferences
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Dashboard Refresh Rate (seconds)"
-                  name="dashboardRefreshRate"
-                  type="number"
-                  value={settings.dashboardRefreshRate}
-                  onChange={handleChange}
-                  inputProps={{ min: 10, max: 300 }}
-                  helperText="How often to refresh the dashboard data (10-300 seconds)"
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.emailDigest}
+                      onChange={handleChange}
+                      name="emailDigest"
+                    />
+                  }
+                  label="Send daily email digest"
                 />
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-        
-        <Box display="flex" justifyContent="flex-end">
-          <Button variant="contained" color="primary" type="submit">
-            Save Settings
-          </Button>
-        </Box>
-      </form>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+      
+      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<SaveIcon />}
+          onClick={handleSave}
+        >
+          Save Settings
+        </Button>
+      </Box>
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

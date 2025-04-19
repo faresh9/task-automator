@@ -29,7 +29,8 @@ export const useWorkflowAPI = () => {
     setError(null);
     
     try {
-      const response = await axios.get(`${API_URL}/workflows/${id}`);
+      // Use the new endpoint that includes stats
+      const response = await axios.get(`${API_URL}/workflows/${id}/stats`);
       setLoading(null);
       return response.data;
     } catch (err) {
@@ -51,6 +52,36 @@ export const useWorkflowAPI = () => {
       return response.data;
     } catch (err) {
       setError(err.message || `Failed to fetch executions for workflow ${workflowId}`);
+      setLoading(null);
+      return [];
+    }
+  }, []);
+  
+  const fetchStats = useCallback(async () => {
+    setLoading('stats');
+    setError(null);
+    
+    try {
+      const response = await axios.get(`${API_URL}/stats`);
+      setLoading(null);
+      return response.data;
+    } catch (err) {
+      setError(err.message || 'Failed to fetch statistics');
+      setLoading(null);
+      return null;
+    }
+  }, []);
+  
+  const fetchEmails = useCallback(async () => {
+    setLoading('emails');
+    setError(null);
+    
+    try {
+      const response = await axios.get(`${API_URL}/emails`);
+      setLoading(null);
+      return response.data;
+    } catch (err) {
+      setError(err.message || 'Failed to fetch emails');
       setLoading(null);
       return [];
     }
@@ -79,6 +110,8 @@ export const useWorkflowAPI = () => {
     fetchWorkflows,
     fetchWorkflowById,
     fetchExecutions,
+    fetchStats,
+    fetchEmails,
     toggleWorkflowState,
   };
 };
