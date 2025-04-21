@@ -1,73 +1,46 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
   Typography, 
   Box,
-  Switch,
   Chip,
-  CardActions,
-  Button,
-  CircularProgress
+  Button
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useWorkflow } from '../context/WorkflowContext';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
 
 const WorkflowCard = ({ workflow }) => {
-  const navigate = useNavigate();
-  const { toggleWorkflowState, loading } = useWorkflow();
-  
-  const handleToggle = (event) => {
-    event.stopPropagation();
-    toggleWorkflowState(workflow.id);
-  };
+  // Make sure workflow.id exists and is not undefined
+  const workflowId = workflow?.id || 'unknown';
   
   return (
-    <Card 
-      className="card" 
-      sx={{ 
-        minWidth: 275, 
-        mb: 2, 
-        cursor: 'pointer',
-        bgcolor: workflow.active ? 'rgba(76, 175, 80, 0.08)' : 'inherit' 
-      }}
-      onClick={() => navigate(`/workflow/${workflow.id}`)}
-    >
+    <Card sx={{ mb: 2, position: 'relative' }}>
       <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h5" component="div">
-            {workflow.name}
-          </Typography>
-          {loading === workflow.id ? (
-            <CircularProgress size={24} />
-          ) : (
-            <Switch
-              checked={workflow.active}
-              onChange={handleToggle}
-              color="primary"
-            />
-          )}
-        </Box>
-        
-        <Box mt={2} display="flex" gap={1}>
-          <Chip 
-            label={workflow.active ? "Active" : "Inactive"} 
-            color={workflow.active ? "success" : "default"} 
-            size="small" 
-          />
-          {workflow.tags && workflow.tags.map(tag => (
-            <Chip key={tag} label={tag} size="small" variant="outlined" />
-          ))}
-        </Box>
-        
-        <Typography sx={{ mb: 1.5, mt: 1.5 }} color="text.secondary">
-          Last updated: {new Date(workflow.updatedAt).toLocaleString()}
+        <Typography variant="h6" gutterBottom>
+          {workflow.name}
         </Typography>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+          <Chip 
+            label={workflow.active ? 'Active' : 'Inactive'} 
+            color={workflow.active ? 'success' : 'default'} 
+            size="small"
+            icon={workflow.active ? <PlayArrowIcon /> : <PauseIcon />} 
+          />
+          
+          {/* Use correct path format with numeric ID */}
+          <Button 
+            component={RouterLink} 
+            to={`/workflow/${workflowId}`} 
+            variant="outlined" 
+            size="small"
+          >
+            View Details
+          </Button>
+        </Box>
       </CardContent>
-      <CardActions>
-        <Button size="small">View Details</Button>
-        <Button size="small">Execution History</Button>
-      </CardActions>
     </Card>
   );
 };

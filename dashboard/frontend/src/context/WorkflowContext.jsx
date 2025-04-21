@@ -38,15 +38,37 @@ export const WorkflowProvider = ({ children }) => {
   
   const fetchWorkflows = useCallback(async () => {
     const data = await apiFetchWorkflows();
-    if (data && Array.isArray(data)) {
-      setWorkflows(data);
+    // Handle both array response and paginated response formats
+    const workflows = Array.isArray(data) ? 
+      data : 
+      (data?.data || []);
+      
+    if (workflows.length > 0) {
+      console.log('Workflows loaded:', workflows.length);
+      setWorkflows(workflows);
+    } else {
+      console.warn('No workflows found or invalid data format');
+      setWorkflows([]);
     }
   }, [apiFetchWorkflows]);
   
   const fetchWorkflowById = useCallback(async (id) => {
+    // Add validation
+    if (!id || id === 'undefined' || id === 'null' || id === 'email') {
+      console.error(`Invalid workflow ID: "${id}"`);
+      return null;
+    }
+    
+    console.log(`Fetching workflow with ID: ${id}`);
     const data = await apiFetchWorkflowById(id);
+    
     if (data) {
+      console.log('Workflow data received:', data);
       setCurrentWorkflow(data);
+      return data;
+    } else {
+      console.error(`Failed to fetch workflow with ID: ${id}`);
+      return null;
     }
   }, [apiFetchWorkflowById]);
   

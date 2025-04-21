@@ -24,89 +24,141 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// n8n API Configuration
+// n8n API Configuration and helper function
 const N8N_API_URL = process.env.N8N_API_URL || 'http://localhost:5678';
 const N8N_API_KEY = process.env.N8N_API_KEY;
 
-// Routes for n8n workflow data
+// Helper function for n8n API requests with better error handling
+async function n8nApiRequest(method, endpoint, data = null, params = {}) {
+  try {
+    const config = {
+      method,
+      url: `${N8N_API_URL}/api/v1/${endpoint}`,
+      headers: { 
+        'X-N8N-API-KEY': N8N_API_KEY,
+        'Accept': 'application/json'
+      },
+      params
+    };
+    
+    if (data) {
+      config.data = data;
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    console.log(`Making ${method} request to n8n: ${endpoint}`);
+    const response = await axios(config);
+    return response.data;
+  } catch (error) {
+    // Enhanced error handling
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      const status = error.response.status;
+      const message = error.response.data?.message || 'Unknown API error';
+      
+      if (status === 401) {
+        throw new Error('Authentication failed: Invalid API key');
+      } else if (status === 404) {
+        throw new Error(`Resource not found: ${endpoint}`);
+      } else {
+        throw new Error(`n8n API error (${status}): ${message}`);
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      throw new Error('No response from n8n server. Check if n8n is running.');
+    } else {
+      // Something happened in setting up the request
+      throw new Error(`Request setup error: ${error.message}`);
+    }
+  }
+}
+
+// Test n8n connectivity on startup
+(async () => {
+  try {
+    await n8nApiRequest('GET', 'workflows', null, { limit: 1 });
+    console.log('Successfully connected to n8n API');
+  } catch (error) {
+    console.warn(`⚠️ Could not connect to n8n: ${error.message}`);
+    console.warn('Dashboard will operate with limited functionality');
+  }
+})();
+
+// Routes for n8n workflow data - FIXED
 app.get('/api/workflows', async (req, res) => {
   try {
-    const response = await axios.get(`${N8N_API_URL}/api/v1/workflows`, {
-      headers: {
-        'X-N8N-API-KEY': N8N_API_KEY
-      }
-    });
-    res.json(response.data);
+    // Remove unsupported pagination parameters
+    const { active } = req.query;
+    const params = {};
+    
+    if (active === 'true') params.active = true;
+    if (active === 'false') params.active = false;
+    
+    const data = await n8nApiRequest('GET', 'workflows', null, params);
+    res.json(data);
   } catch (error) {
-    console.error('Error fetching workflows:', error);
-    res.status(500).json({ error: 'Failed to fetch workflows' });
+    console.error('Error fetching workflows:', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Get workflow by ID
+// Get workflow by ID - UPDATED
 app.get('/api/workflows/:id', async (req, res) => {
   try {
-    const response = await axios.get(`${N8N_API_URL}/api/v1/workflows/${req.params.id}`, {
-      headers: {
-        'X-N8N-API-KEY': N8N_API_KEY
-      }
-    });
-    res.json(response.data);
+    const data = await n8nApiRequest('GET', `workflows/${req.params.id}`);
+    res.json(data);
   } catch (error) {
-    console.error(`Error fetching workflow ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to fetch workflow details' });
+    console.error(`Error fetching workflow ${req.params.id}:`, error.message);
+    
+    // Provide better error response
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: `Workflow with ID ${req.params.id} not found` });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
-// Get workflow executions
+// Get workflow executions - FIXED
 app.get('/api/executions/:workflowId', async (req, res) => {
   try {
-    const response = await axios.get(
-      `${N8N_API_URL}/api/v1/executions?workflowId=${req.params.workflowId}`,
-      {
-        headers: {
-          'X-N8N-API-KEY': N8N_API_KEY
-        }
-      }
-    );
-    res.json(response.data);
+    // Remove potentially unsupported parameters
+    const params = {
+      workflowId: req.params.workflowId
+    };
+    
+    const data = await n8nApiRequest('GET', 'executions', null, params);
+    
+    res.json(data);
   } catch (error) {
-    console.error(`Error fetching executions for workflow ${req.params.workflowId}:`, error);
-    res.status(500).json({ error: 'Failed to fetch execution data' });
+    console.error(`Error fetching executions for workflow ${req.params.workflowId}:`, error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Toggle workflow active state
+// Toggle workflow active state - UPDATED
 app.post('/api/workflows/:id/toggle', async (req, res) => {
   try {
     // First get current workflow state
-    const workflowResponse = await axios.get(`${N8N_API_URL}/api/v1/workflows/${req.params.id}`, {
-      headers: {
-        'X-N8N-API-KEY': N8N_API_KEY
-      }
-    });
+    const workflow = await n8nApiRequest('GET', `workflows/${req.params.id}`);
     
-    const workflow = workflowResponse.data;
-    const updatedWorkflow = {
-      ...workflow,
+    // Prepare update with only required fields to prevent overwrite issues
+    const updateData = {
       active: !workflow.active
     };
     
     // Update the workflow
-    const updateResponse = await axios.put(
-      `${N8N_API_URL}/api/v1/workflows/${req.params.id}`,
-      updatedWorkflow,
-      {
-        headers: {
-          'X-N8N-API-KEY': N8N_API_KEY
-        }
-      }
+    const updatedWorkflow = await n8nApiRequest(
+      'PATCH', // Using PATCH instead of PUT to only update specific fields
+      `workflows/${req.params.id}/activate`,
+      { active: !workflow.active }
     );
     
-    res.json(updateResponse.data);
+    res.json(updatedWorkflow);
   } catch (error) {
-    console.error(`Error toggling workflow ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to toggle workflow state' });
+    console.error(`Error toggling workflow ${req.params.id}:`, error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -282,13 +334,11 @@ app.post('/api/webhook/email-processed', async (req, res) => {
   }
 });
 
-// Workflow statistics by ID
+// Workflow statistics by ID - UPDATED
 app.get('/api/workflows/:id/stats', async (req, res) => {
   try {
     // First get workflow data from n8n
-    const workflowResponse = await axios.get(`${N8N_API_URL}/api/v1/workflows/${req.params.id}`, {
-      headers: { 'X-N8N-API-KEY': N8N_API_KEY }
-    });
+    const workflow = await n8nApiRequest('GET', `workflows/${req.params.id}`);
     
     // Then get execution stats from SQLite
     const [emailsResult] = await db('emails')
@@ -324,7 +374,7 @@ app.get('/api/workflows/:id/stats', async (req, res) => {
       Math.round(((emailsProcessed - errors) / emailsProcessed) * 100) : 0;
     
     res.json({
-      ...workflowResponse.data,
+      ...workflow,
       stats: {
         emailsProcessed,
         calendarEvents,
@@ -334,9 +384,59 @@ app.get('/api/workflows/:id/stats', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(`Error fetching workflow stats for ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to fetch workflow statistics' });
+    console.error(`Error fetching workflow stats for ${req.params.id}:`, error.message);
+    
+    // Handle workflow not found specifically
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: `Workflow with ID ${req.params.id} not found` });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
+});
+
+// Debug endpoint to display connection info - FIXED
+app.get('/api/test-connections', async (req, res) => {
+  const results = {
+    backend: 'ok',
+    database: false,
+    n8n: false,
+    n8nApiUrl: N8N_API_URL,
+    n8nHasApiKey: !!N8N_API_KEY,
+    n8nWorkflows: []
+  };
+  
+  // Test database connection
+  try {
+    const [dbTest] = await db('sqlite_master').count('* as count');
+    results.database = dbTest && dbTest.count >= 0;
+  } catch (dbError) {
+    console.error('Database test failed:', dbError);
+    results.databaseError = dbError.message;
+  }
+  
+  // Test n8n connection
+  try {
+    // Remove potentially unsupported parameters
+    const workflowsData = await n8nApiRequest('GET', 'workflows');
+    
+    results.n8n = true;
+    // Handle difference in API response format
+    const workflows = Array.isArray(workflowsData) ? 
+      workflowsData : 
+      (workflowsData?.data || []);
+      
+    results.n8nWorkflows = workflows.map(wf => ({
+      id: wf.id,
+      name: wf.name,
+      active: wf.active
+    }));
+  } catch (n8nError) {
+    console.error('n8n test failed:', n8nError.message);
+    results.n8nError = n8nError.message;
+  }
+  
+  res.json(results);
 });
 
 // Start server

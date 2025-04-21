@@ -1,84 +1,87 @@
 # Task Automator
 
-This project automates email processing, meeting scheduling, and task management using n8n workflows.
+An intelligent workflow automation system that streamlines email processing, meeting scheduling, and task management using AI-powered workflows.
+
+## Overview
+
+Task Automator reduces manual effort by automatically:
+- Analyzing incoming emails and determining required actions
+- Creating calendar events with appropriate attendees and timing
+- Converting email content into structured tasks
+- Tracking all automation activities through a dashboard
 
 ## Architecture
 
-- **n8n Workflows**: Handle email processing, meeting creation, and task management
-- **Backend API**: Provides minimal endpoints for AI analysis
-- **Frontend**: User interface for monitoring and configuration
+- **n8n Workflows**: Core automation engine handling email processing, meeting creation, and task management  
+- **Fine-tuned GPT-4**: AI model specifically trained for email intent recognition and classification  
+- **SQLite Database**: Stores workflow processing data and provides analytics  
+- **Coda Dashboard**: Collaborative interface for monitoring workflow performance  
 
 ## Components
 
 ### n8n Workflows
 
-- `email-processing.json`: Analyzes incoming emails and routes them appropriately
-- `calendar-events.json`: Creates and manages calendar events
-- `task-management.json`: Creates and updates tasks in Trello
+- `automation_refined.json`: Main workflow that orchestrates the entire automation process
 
-### Backend API (Minimal)
+### AI Integration
 
-- Email categorization endpoint
-- AI analysis utilities
+- Uses fine-tuned GPT-4 model for superior email understanding  
+- Processes natural language to extract actionable items from emails  
+- Employs vector similarity search for finding related past communications  
 
-### Legacy Code
+### Google Workspace Integration
 
-The original API-based implementation is preserved in the `api-legacy` branch.
+- **Gmail**: Monitors inbox and processes incoming messages  
+- **Google Calendar**: Creates and manages events based on email content  
+- **Google Tasks**: Generates tasks from email content when appropriate  
 
 ## Setup Instructions
 
 ### n8n Setup
 
 1. Install n8n:
-npm install n8n -g
+    ```bash
+    npm install n8n -g
+    ```
 
 2. Start n8n:
-n8n start
+    ```bash
+    n8n start
+    ```
 
-
-3. Import workflows from the `workflows/n8n/` directory
+3. Import the workflow from `workflows/n8n/automation_refined.json`
 
 4. Configure credentials for:
-- Gmail
-- Google Calendar
-- Trello
-- OpenAI
+    - Gmail  
+    - Google Calendar  
+    - Google Tasks  
+    - OpenAI  
 
-5. Activate the workflows
+5. Customize the workflow settings:
+    - Update email filters if needed  
+    - Configure the OpenAI model parameters  
 
-### API Setup (For AI Services)
+### Database Setup
 
-1. Install dependencies:
-pip install -r requirements.txt
+1. The SQLite database will be created automatically when the backend server starts  
+2. No additional configuration is needed as it's a file-based database  
 
-2. Configure environment variables:
-cp .env.example .env
+### Dashboard Setup
 
-Edit .env with your API keys
+1. Access the Coda dashboard at:  
+   [https://coda.io/d/Copy-of-The-n8n-Dashboard_dMRW1W5M0mo/The-n8n-Dashboard_suSHMfCn](https://coda.io/d/Copy-of-The-n8n-Dashboard_dMRW1W5M0mo/The-n8n-Dashboard_suSHMfCn)
 
-3. Start the API:
-
-uvicorn backend.main:app --reload
-
-### MongoDB Setup
-
-1. Create a MongoDB database (e.g., using MongoDB Atlas).
-2. Add the following collections:
-   - `sender_history`: Stores email sender information.
-   - `action_history`: Records actions taken by the workflow.
-3. Update the `credentials.json` file with your MongoDB connection string.
-
-### Trello Setup
-
-1. Obtain your Trello API key and token from the Trello Developer Portal.
-2. Replace `YOUR_TRELLO_API_KEY` and `YOUR_TRELLO_API_TOKEN` in `credentials.json`.
-3. Replace `YOUR_TRELLO_BOARD_ID` and `YOUR_TRELLO_LIST_ID` in `workflow.json` with your actual Trello board and list IDs.
+2. Customize the dashboard by connecting it to your n8n instance:
+    - Go to settings and update the n8n API URL  
+    - Add your n8n API key  
 
 ### Testing
 
-1. Use a "Manual Trigger" node for testing the workflow before enabling the Gmail Trigger.
-2. Test each path (e.g., Calendar creation, Trello task creation) individually.
+1. Use the n8n "Manual Trigger" node for testing the workflow before enabling automation  
+2. Send test emails to verify each path (calendar creation, task creation, etc.)  
+3. Monitor results in the Coda dashboard  
 
-### Activate Workflow
+### Activate Automation
 
-1. Once tested, enable the Gmail Trigger to automate the workflow.
+1. After successful testing, activate the Gmail Trigger node to begin automated processing  
+2. Monitor the system performance through the Coda dashboard  

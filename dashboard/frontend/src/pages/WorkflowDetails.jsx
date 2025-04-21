@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Container, 
   Grid, 
@@ -21,7 +21,10 @@ import ExecutionTable from '../components/ExecutionTable';
 
 const WorkflowDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = React.useState(0);
+  const [isInvalidId, setIsInvalidId] = useState(false);
+  
   const { 
     fetchWorkflowById, 
     currentWorkflow, 
@@ -32,15 +35,44 @@ const WorkflowDetails = () => {
   } = useWorkflow();
   
   useEffect(() => {
-    if (id) {
-      fetchWorkflowById(id);
-      fetchExecutions(id);
+    // Validate ID - check if it's a valid format
+    if (!id) {
+      setIsInvalidId(true);
+      return;
     }
-  }, [id, fetchWorkflowById]);
+    
+    // Check if ID is valid format (not "email" or other string that shouldn't be an ID)
+    // This depends on your actual ID format, adjust accordingly
+    if (id === 'email' || id === 'undefined' || id === 'null') {
+      setIsInvalidId(true);
+      // Redirect to workflows list
+      navigate('/');
+      return;
+    }
+    
+    fetchWorkflowById(id);
+    fetchExecutions(id);
+  }, [id, fetchWorkflowById, fetchExecutions, navigate]);
   
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+  
+  if (isInvalidId) {
+    return (
+      <Container>
+        <Typography variant="h5" gutterBottom>Invalid Workflow ID</Typography>
+        <Alert severity="error">
+          The workflow ID "{id}" is invalid. Please select a workflow from the dashboard.
+        </Alert>
+        <Box mt={2}>
+          <Button variant="contained" onClick={() => navigate('/')}>
+            Back to Dashboard
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
   
   if (loading === 'workflow') {
     return (
